@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pipeline Table Editor</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>Pipeline Table Editor</h1>
+        <p>Instruction-time tables for pipelined processors</p>
+      </div>
+      <div class="status" id="saveStatus" aria-live="polite"></div>
+    </header>
+
+    <main class="layout" id="layoutRoot">
+      <section class="controls" aria-label="Controles">
+        <div class="sidebar-head">
+          <span>Panel</span>
+          <button id="collapseSidebarBtn" type="button" class="icon-button" title="Hide panel" aria-label="Hide panel">▱</button>
+        </div>
+
+        <div class="field">
+          <label for="titleInput">Title</label>
+          <input id="titleInput" type="text" placeholder="Exercise 1">
+        </div>
+
+        <div class="field compact">
+          <label for="cyclesInput">Cycles</label>
+          <input id="cyclesInput" type="number" min="1" max="200" step="1">
+        </div>
+
+        <div class="field instructions-field">
+          <label for="instructionsInput">Instructions</label>
+          <textarea id="instructionsInput" rows="7" spellcheck="false" placeholder="flw f10, 0(x1)&#10;fmul.s f4, f0, f10"></textarea>
+        </div>
+
+        <div class="export-control">
+          <button id="exportMenuBtn" type="button" aria-haspopup="true" aria-expanded="false">Export</button>
+          <div id="exportMenu" class="sidebar-menu" aria-hidden="true">
+            <button type="button" data-export-format="json">JSON</button>
+            <button type="button" data-export-format="markdown">Markdown</button>
+            <button type="button" data-export-format="text">Plain text</button>
+            <button type="button" data-export-format="png">PNG image</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="importInput">Import JSON</label>
+          <textarea id="importInput" rows="5" spellcheck="false" placeholder='{"title":"Exercise 1",...}'></textarea>
+        </div>
+
+        <div class="button-row">
+          <button id="importBtn" type="button">Load JSON</button>
+          <button id="saveBtn" type="button">Save</button>
+          <button id="clearBtn" type="button" class="danger">Clear</button>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Editable table">
+        <div class="table-shell" id="tableShell">
+          <svg id="arrowLayer" class="arrow-layer" aria-hidden="true"></svg>
+          <div id="tableMount"></div>
+        </div>
+
+      </section>
+    </main>
+
+    <button id="expandSidebarBtn" type="button" class="sidebar-reopen icon-button" title="Show panel" aria-label="Show panel">▰</button>
+
+    <div id="cellMenu" class="context-menu" role="menu" aria-hidden="true">
+      <button type="button" data-action="arrow">Arrow</button>
+      <button type="button" data-action="remove-arrows">Remove arrows</button>
+      <button type="button" data-action="strike">Strike</button>
+      <button type="button" data-action="expand">Expand</button>
+      <div class="context-submenu">
+        <button type="button" class="context-submenu-trigger" aria-haspopup="true">Edit</button>
+        <div class="context-submenu-menu" role="menu">
+          <button type="button" data-action="clear">Clear</button>
+          <button type="button" data-action="copy">Copy</button>
+          <button type="button" data-action="cut">Cut</button>
+          <button type="button" data-action="paste">Paste</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="autocompleteMenu" class="autocomplete-menu" aria-hidden="true"></div>
+
+    <div id="exportModal" class="modal-backdrop" aria-hidden="true">
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+        <div class="modal-header">
+          <h2 id="exportTitle">Output</h2>
+          <button id="closeExportBtn" type="button" class="ghost-button">Close</button>
+        </div>
+        <textarea id="exportOutput" rows="14" spellcheck="false" readonly></textarea>
+        <div class="modal-actions">
+          <button id="copyExportBtn" type="button">Copy output</button>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -8,13 +8,15 @@ It is not a pipeline simulator: it does not calculate hazards, CPI, conflicts, o
 
 ## Screenshot
 
-![Pipeline Table Editor overview](app/docs/screenshots/editor-overview.png)
+<p align="center">
+  <img src="./app/docs/screenshots/editor-overview.png" alt="Pipeline Table Editor overview">
+</p>
 
 Additional screenshots:
 
-- [Context menu](app/docs/screenshots/context-menu.png)
-- [Export menu](app/docs/screenshots/export-menu.png)
-- [Validation and autocomplete](app/docs/screenshots/validation-and-autocomplete.png)
+- [Context menu](./app/docs/screenshots/context-menu.png)
+- [Export menu](./app/docs/screenshots/export-menu.png)
+- [Validation and autocomplete](./app/docs/screenshots/validation-and-autocomplete.png)
 
 ## Local Usage
 
@@ -55,7 +57,7 @@ The output is written to `dist/` and can be published to GitHub Pages.
 - `codex/`: auxiliary notes for Codex work.
 - `README.md` and `LICENSE`: public project documentation.
 
-See [`app/docs/architecture.md`](app/docs/architecture.md) for module diagrams, class diagrams, and sequence diagrams.
+See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams, class diagrams, and sequence diagrams.
 
 ## Scripts
 
