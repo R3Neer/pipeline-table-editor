@@ -2,8 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-
-const { chromium } = await import("playwright-core");
+import { chromium, type Page } from "playwright-core";
 
 const port = process.env.SCREENSHOT_PORT || "5174";
 const appUrl = `http://127.0.0.1:${port}/`;
@@ -55,7 +54,28 @@ try {
   server.kill();
 }
 
-function screenshotState() {
+interface ScreenshotCell {
+  text: string;
+  struck: boolean;
+}
+
+interface ScreenshotRow {
+  instruction: string;
+  cells: ScreenshotCell[];
+}
+
+interface ScreenshotState {
+  title: string;
+  cycles: number;
+  rows: ScreenshotRow[];
+  arrows: Array<{
+    from: { row: number; cycle: number };
+    to: { row: number; cycle: number };
+    label: string;
+  }>;
+}
+
+function screenshotState(): ScreenshotState {
   return {
     title: "Forwarding example",
     cycles: 8,
@@ -107,15 +127,15 @@ function screenshotState() {
   };
 }
 
-function cell(page, row, cycle) {
+function cell(page: Page, row: number, cycle: number) {
   return page.locator(`.stage-input[data-row="${row}"][data-cycle="${cycle}"]`);
 }
 
-function screenshotPath(filename) {
+function screenshotPath(filename: string) {
   return fileURLToPath(new URL(filename, outputDir));
 }
 
-async function waitForServer(url) {
+async function waitForServer(url: string) {
   const started = Date.now();
   while (Date.now() - started < 30000) {
     try {

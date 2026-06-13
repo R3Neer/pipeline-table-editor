@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import { chromium, type Dialog, type Page } from "playwright-core";
 
-const { chromium } = await import("playwright-core");
 const defaultChromePath = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const chromePath = process.env.CHROME_PATH || (existsSync(defaultChromePath) ? defaultChromePath : "");
 
-const appUrl = "http://127.0.0.1:5173/";
-const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", "5173", "--strictPort"], {
+const port = process.env.SMOKE_PORT || "5175";
+const appUrl = `http://127.0.0.1:${port}/`;
+const server = spawn(process.execPath, ["node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--port", port, "--strictPort"], {
   stdio: "inherit"
 });
 
@@ -215,7 +216,7 @@ try {
   await fillCell(page, 2, 1, "");
   await fillCell(page, 2, 2, "");
   let rootRenumberDialogShown = false;
-  const rootRenumberDialogHandler = (dialog) => {
+  const rootRenumberDialogHandler = (dialog: Dialog) => {
     rootRenumberDialogShown = true;
     dialog.dismiss();
   };
@@ -237,7 +238,7 @@ try {
   await fillCell(page, 0, 1, "IF2");
   await fillCell(page, 0, 2, "IF3");
   let redundantDialogShown = false;
-  const redundantDialogHandler = (dialog) => {
+  const redundantDialogHandler = (dialog: Dialog) => {
     redundantDialogShown = true;
     dialog.dismiss();
   };
@@ -394,16 +395,16 @@ try {
   server.kill();
 }
 
-async function fillCell(page, row, cycle, value) {
+async function fillCell(page: Page, row: number, cycle: number, value: string) {
   const locator = cell(page, row, cycle);
   await locator.fill(value);
 }
 
-function cell(page, row, cycle) {
+function cell(page: Page, row: number, cycle: number) {
   return page.locator(`.stage-input[data-row="${row}"][data-cycle="${cycle}"]`);
 }
 
-async function expectClass(page, row, cycle, className) {
+async function expectClass(page: Page, row: number, cycle: number, className: string) {
   await page.waitForFunction(
     ({ row, cycle, className }) => {
       const input = document.querySelector(`.stage-input[data-row="${row}"][data-cycle="${cycle}"]`);
@@ -413,33 +414,33 @@ async function expectClass(page, row, cycle, className) {
   );
 }
 
-async function expectOpacity(page, selector, expected) {
+async function expectOpacity(page: Page, selector: string, expected: string) {
   await page.waitForFunction(
     ({ selector, expected }) => getComputedStyle(document.querySelector(selector)).opacity === expected,
     { selector, expected }
   );
 }
 
-async function assertVisibleText(page, text) {
+async function assertVisibleText(page: Page, text: string) {
   await page.getByText(text).first().waitFor({ state: "visible" });
 }
 
-async function autocompleteHasOption(page, text) {
+async function autocompleteHasOption(page: Page, text: string) {
   return page.locator("#autocompleteMenu .autocomplete-option", { hasText: text }).count().then((count) => count > 0);
 }
 
-async function autocompleteHasExactOption(page, text) {
+async function autocompleteHasExactOption(page: Page, text: string) {
   return page
     .locator("#autocompleteMenu .autocomplete-option")
     .evaluateAll((options, expected) => options.some((option) => option.textContent === expected), text);
 }
 
-async function clickEditAction(page, action) {
+async function clickEditAction(page: Page, action: string) {
   await page.locator(".context-submenu-trigger").hover();
   await page.locator(`#cellMenu [data-action="${action}"]`).click();
 }
 
-async function waitForServer(url) {
+async function waitForServer(url: string) {
   const started = Date.now();
   while (Date.now() - started < 30000) {
     try {
