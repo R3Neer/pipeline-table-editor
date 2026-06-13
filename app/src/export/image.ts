@@ -52,7 +52,7 @@ const stageStyles: Record<StageRoot, StageStyle> = {
   ID: { background: "#d9eefc", border: "#72aee6", color: "#263241" },
   EX: { background: "#ffe8a8", border: "#d6a534", color: "#263241" },
   MEM: { background: "#dfdcff", border: "#9488df", color: "#263241" },
-  WB: { background: "#ffd9e2", border: "#dc8297", color: "#263241" }
+  WB: { background: "#c9f3ec", border: "#48b7a6", color: "#263241" }
 };
 
 function makeImageMetrics(state: AppState): ImageMetrics {
