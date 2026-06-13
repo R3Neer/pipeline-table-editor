@@ -113,12 +113,18 @@ try {
   await assertVisibleText(page, "IF2p");
   assert.equal(await autocompleteHasExactOption(page, "IF2p"), true);
   assert.equal(await autocompleteHasExactOption(page, "IFp"), false);
+  assert.equal(await autocompleteHasExactOption(page, "ID"), false);
+  assert.equal(await autocompleteHasExactOption(page, "ID1"), false);
+  assert.equal(await autocompleteHasExactOption(page, "IDp"), false);
   await page.keyboard.press("Escape");
   await fillCell(page, 1, 2, "");
   await cell(page, 1, 2).click();
   await assertVisibleText(page, "IF2p");
   assert.equal(await autocompleteHasExactOption(page, "IF2p"), true);
   assert.equal(await autocompleteHasExactOption(page, "IFp"), false);
+  assert.equal(await autocompleteHasExactOption(page, "ID"), false);
+  assert.equal(await autocompleteHasExactOption(page, "ID1"), false);
+  assert.equal(await autocompleteHasExactOption(page, "IDp"), false);
   await page.keyboard.press("Escape");
   await fillCell(page, 0, 0, "IF");
   await fillCell(page, 0, 1, "ID");

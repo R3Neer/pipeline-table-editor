@@ -124,7 +124,9 @@ function getSuggestions(state: AppState, pos: CellPosition, raw: string): string
       add(formatPendingStageText(previousStage.root, previousStage.number), 0);
     } else {
       add(formatStageText(previousStage.root, previousStage.number), 0);
+      if (canPlacePending) add(formatPendingStageText(previousStage.root, previousStage.number), 1);
     }
+    return orderSuggestions(candidates, input).slice(0, maxSuggestions);
   }
 
   if (previousStage?.number && !previousStage.pending) {
