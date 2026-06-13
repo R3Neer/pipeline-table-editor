@@ -87,6 +87,48 @@ try {
   await expectClass(page, 1, 4, "stage-ex");
   await expectClass(page, 2, 0, "stage-invalid");
 
+  await fillCell(page, 1, 2, "IDp");
+  await fillCell(page, 1, 3, "IDp");
+  await fillCell(page, 1, 4, "ID");
+  await expectClass(page, 1, 2, "stage-p");
+  await expectNoClass(page, 1, 2, "stage-invalid");
+  await expectClass(page, 1, 3, "stage-p");
+  await expectNoClass(page, 1, 3, "stage-invalid");
+  await fillCell(page, 1, 4, "");
+  await expectNoClass(page, 1, 2, "stage-invalid");
+  await expectNoClass(page, 1, 3, "stage-invalid");
+  await fillCell(page, 1, 4, "EX");
+  await expectClass(page, 1, 2, "stage-invalid");
+  await expectClass(page, 1, 3, "stage-invalid");
+  await fillCell(page, 1, 3, "ID");
+  await fillCell(page, 1, 4, "EX1");
+
+  await fillCell(page, 0, 0, "IF1");
+  await fillCell(page, 0, 1, "IF2p");
+  await fillCell(page, 0, 2, "IF2p");
+  await fillCell(page, 1, 0, "IF1");
+  await fillCell(page, 1, 1, "IF2p");
+  await fillCell(page, 1, 2, "IF2p");
+  await cell(page, 1, 2).click();
+  await assertVisibleText(page, "IF2p");
+  assert.equal(await autocompleteHasExactOption(page, "IF2p"), true);
+  assert.equal(await autocompleteHasExactOption(page, "IFp"), false);
+  await page.keyboard.press("Escape");
+  await fillCell(page, 1, 2, "");
+  await cell(page, 1, 2).click();
+  await assertVisibleText(page, "IF2p");
+  assert.equal(await autocompleteHasExactOption(page, "IF2p"), true);
+  assert.equal(await autocompleteHasExactOption(page, "IFp"), false);
+  await page.keyboard.press("Escape");
+  await fillCell(page, 0, 0, "IF");
+  await fillCell(page, 0, 1, "ID");
+  await fillCell(page, 0, 2, "EX");
+  await fillCell(page, 1, 0, "");
+  await fillCell(page, 1, 1, "IF");
+  await fillCell(page, 1, 2, "IDp");
+  await fillCell(page, 1, 3, "ID");
+  await fillCell(page, 1, 4, "EX1");
+
   await fillCell(page, 0, 0, "IFp");
   await fillCell(page, 0, 1, "IF");
   await fillCell(page, 1, 0, "IF");
@@ -153,7 +195,8 @@ try {
   assert.equal(await cell(page, 1, 5).inputValue(), "EX2");
   await fillCell(page, 1, 5, "EX2p");
   assert.equal(await cell(page, 1, 5).inputValue(), "EX2p");
-  await expectClass(page, 1, 5, "stage-invalid");
+  await expectClass(page, 1, 5, "stage-p");
+  await expectNoClass(page, 1, 5, "stage-invalid");
   await fillCell(page, 2, 0, "IF");
   await fillCell(page, 2, 1, "ID");
   await fillCell(page, 2, 2, "EX1");
@@ -200,7 +243,8 @@ try {
   assert.equal(await cell(page, 2, 2).inputValue(), "IDp");
   assert.equal(await cell(page, 2, 3).inputValue(), "IDp");
   assert.equal(await cell(page, 2, 4).inputValue(), "IDp");
-  await expectClass(page, 2, 4, "stage-invalid");
+  await expectClass(page, 2, 4, "stage-p");
+  await expectNoClass(page, 2, 4, "stage-invalid");
 
   await fillCell(page, 0, 0, "IF");
   await fillCell(page, 0, 1, "ID");
@@ -409,6 +453,16 @@ async function expectClass(page: Page, row: number, cycle: number, className: st
     ({ row, cycle, className }) => {
       const input = document.querySelector(`.stage-input[data-row="${row}"][data-cycle="${cycle}"]`);
       return input && input.classList.contains(className);
+    },
+    { row, cycle, className }
+  );
+}
+
+async function expectNoClass(page: Page, row: number, cycle: number, className: string) {
+  await page.waitForFunction(
+    ({ row, cycle, className }) => {
+      const input = document.querySelector(`.stage-input[data-row="${row}"][data-cycle="${cycle}"]`);
+      return input && !input.classList.contains(className);
     },
     { row, cycle, className }
   );

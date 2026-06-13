@@ -1,6 +1,14 @@
 import type { AppState, CellPosition, PipelineArrow, StageRoot } from "./model";
 import { stageRoots } from "./model";
-import { getStageOrder, getValidRoot, isPendingStageText, parseStageText, validCellPattern } from "./stage";
+import {
+  formatPendingStageText,
+  formatStageText,
+  getStageOrder,
+  getValidRoot,
+  isPendingStageText,
+  parseStageText,
+  validCellPattern
+} from "./stage";
 
 export { getStageOrder, getValidRoot, isPendingStageText, normalizeCellText, validCellPattern } from "./stage";
 
@@ -14,13 +22,30 @@ export function isCellTextValid(value: string, state: AppState, pos: CellPositio
   const pendingStage = parseStageText(value);
   if (!pendingStage?.pending) return true;
 
-  const expectedNext = `${pendingStage.root}${pendingStage.number || ""}`;
-  const next = pos.cycle < state.cycles - 1 ? state.rows[pos.row].cells[pos.cycle + 1].text.trim() : "";
-  if (next !== expectedNext) return false;
+  if (!resolvesPendingChain(state, pos)) return false;
 
   if (!pendingStage.number) return true;
   const previous = pos.cycle > 0 ? state.rows[pos.row].cells[pos.cycle - 1].text.trim() : "";
-  return previous === `${pendingStage.root}${pendingStage.number - 1}`;
+  if (previous === formatPendingStageText(pendingStage.root, pendingStage.number)) return true;
+
+  return previous === formatStageText(pendingStage.root, pendingStage.number - 1);
+}
+
+function resolvesPendingChain(state: AppState, pos: CellPosition): boolean {
+  const pendingStage = parseStageText(state.rows[pos.row].cells[pos.cycle].text);
+  if (!pendingStage?.pending) return true;
+
+  const expectedStage = formatStageText(pendingStage.root, pendingStage.number);
+  const expectedPending = formatPendingStageText(pendingStage.root, pendingStage.number);
+  for (let cycle = pos.cycle + 1; cycle < state.cycles; cycle += 1) {
+    const nextText = state.rows[pos.row].cells[cycle].text.trim();
+    if (!nextText) return true;
+    if (nextText === expectedStage) return true;
+    if (nextText === expectedPending) continue;
+    return false;
+  }
+
+  return true;
 }
 
 export function requiresPendingFromAbove(state: AppState, pos: CellPosition): boolean {

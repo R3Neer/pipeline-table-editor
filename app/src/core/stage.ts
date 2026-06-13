@@ -40,6 +40,14 @@ export function isPendingStageText(value: string): boolean {
   return pendingPattern.test(value.trim());
 }
 
+export function formatStageText(root: StageRoot, number: number | null): string {
+  return `${root}${number || ""}`;
+}
+
+export function formatPendingStageText(root: StageRoot, number: number | null): string {
+  return `${formatStageText(root, number)}p`;
+}
+
 export function getStageOrder(root: StageRoot): number {
   return stageRoots.indexOf(root);
 }
