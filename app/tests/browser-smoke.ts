@@ -141,7 +141,7 @@ try {
   await assertVisibleText(page, "EX2");
   assert.equal(await autocompleteHasOption(page, "EX2p"), false);
   await page.keyboard.press("Enter");
-  assert.equal(await cell(page, 1, 5).inputValue(), "EX");
+  assert.equal(await cell(page, 1, 5).inputValue(), "EX2");
   await page.locator("#autocompleteMenu").waitFor({ state: "hidden" });
   await fillCell(page, 1, 5, "");
   await cell(page, 1, 5).click();

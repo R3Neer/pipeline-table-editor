@@ -261,7 +261,7 @@ function onCellKeyDown(event: KeyboardEvent): void {
   }
   if (event.key === "Enter" && activeSuggestion.values.length) {
     event.preventDefault();
-    autocomplete.hide();
+    acceptSuggestion(activeSuggestion.values[activeSuggestion.index]);
     return;
   }
   if (event.key === "Tab" && activeSuggestion.values.length) {
