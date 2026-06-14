@@ -49,6 +49,14 @@ assert.equal(validCellPattern.test("IDp"), true);
 }
 
 {
+  const state = makeState([["IF", "MEM", "EX", "MEM", "WB"]]);
+  assertCellValidity(state, 0, 1, false);
+  assertCellValidity(state, 0, 2, false);
+  assertCellValidity(state, 0, 3, false);
+  assertCellValidity(state, 0, 4, false);
+}
+
+{
   const state = makeState([
     ["IFp", "IF"],
     ["IF", ""],

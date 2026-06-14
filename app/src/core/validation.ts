@@ -81,8 +81,12 @@ function isMissingPreviousStage(value: string, state: AppState, pos: CellPositio
   for (let cycle = 0; cycle < pos.cycle; cycle += 1) {
     const previousText = state.rows[pos.row].cells[cycle].text.trim();
     const previousRoot = getValidRoot(previousText);
-    if (previousRoot === requiredPreviousRoot && validCellPattern.test(previousText)) return false;
+    if (previousRoot === requiredPreviousRoot && isPreviousCellValid(previousText, state, { row: pos.row, cycle })) return false;
   }
 
   return true;
+}
+
+function isPreviousCellValid(value: string, state: AppState, pos: CellPosition): boolean {
+  return validCellPattern.test(value) && isCellTextValid(value, state, pos);
 }

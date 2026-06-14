@@ -180,10 +180,24 @@ try {
   await expectClass(page, 2, 2, "stage-invalid");
   await fillCell(page, 2, 2, "EX");
   await fillCell(page, 2, 3, "MEM");
-  await expectClass(page, 2, 3, "stage-mem");
+  await expectClass(page, 2, 3, "stage-invalid");
   await fillCell(page, 2, 1, "");
   await fillCell(page, 2, 2, "");
   await fillCell(page, 2, 3, "");
+
+  await fillCell(page, 2, 0, "IF");
+  await fillCell(page, 2, 1, "MEM");
+  await fillCell(page, 2, 2, "EX");
+  await fillCell(page, 2, 3, "MEM");
+  await fillCell(page, 2, 4, "WB");
+  await expectClass(page, 2, 1, "stage-invalid");
+  await expectClass(page, 2, 2, "stage-invalid");
+  await expectClass(page, 2, 3, "stage-invalid");
+  await expectClass(page, 2, 4, "stage-invalid");
+  await fillCell(page, 2, 1, "");
+  await fillCell(page, 2, 2, "");
+  await fillCell(page, 2, 3, "");
+  await fillCell(page, 2, 4, "");
 
   await fillCell(page, 2, 0, "IF");
   await cell(page, 2, 1).click();
