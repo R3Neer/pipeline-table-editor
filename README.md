@@ -58,10 +58,13 @@ The output is written to `dist/`.
 
 - `OPEN_PIPELINE_EDITOR.bat`: launcher for opening the app with a double click on Windows.
 - `app/`: web app source code, Vite configuration, and tests.
-  - `app/src/main.ts`: application entry point and event wiring.
+  - `app/src/main.ts`: application coordinator and event wiring.
   - `app/src/core/`: data model, state normalization, labels, stage parsing, validation, autocomplete, arrow, row, selection, and expansion rules.
+  - `app/src/core/useCases/`: deterministic table-editing workflows with no DOM access.
+  - `app/src/app/`: transient application-session types that are not persisted state.
+  - `app/src/integration/`: browser integration that adapts app state to external services such as `localStorage`.
   - `app/src/ui/`: DOM helpers, split-table scrolling/layout, autocomplete menu rendering, floating positioning, arrow drawing, and download helpers.
-  - `app/src/export/`: Markdown/text/JSON and PNG export code.
+  - `app/src/export/`: Markdown/text/JSON/PNG export code and export format metadata.
   - `app/src/styles.css`: application styles.
   - `app/tests/`: browser smoke tests.
 - `codex/`: auxiliary notes for Codex work.
@@ -76,6 +79,8 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run preview`: previews `dist/`.
 - `npm run screenshots`: regenerates documentation screenshots.
 - `npm run test:unit`: fast unit tests for domain rules.
+- `npm run test:integration`: integration-style unit tests for extensibility seams, storage, export services, visual class composition, and table-editing use cases.
+- `npm run test:all`: unit, integration, and browser smoke tests.
 - `npm run test:smoke`: browser smoke test.
 
 ## Cell Format

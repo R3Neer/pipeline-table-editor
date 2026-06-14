@@ -3,9 +3,6 @@ import { isUsableArrow, isValidArrowTarget } from "./arrows";
 import { normalizeRowLabel } from "./labels";
 import { normalizeCellText } from "./stage";
 
-const STORAGE_KEY = "pipeline-table-editor-state-v2";
-const LEGACY_STORAGE_KEY = "pipeline-table-editor-state-v1";
-
 export function createDefaultState(): AppState {
   return {
     title: "Exercise 1",
@@ -23,20 +20,6 @@ export function makeRow(instruction: string, cycles: number): InstructionRow {
     instruction,
     cells: Array.from({ length: cycles }, () => ({ text: "", struck: false }))
   };
-}
-
-export function loadState(): AppState | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
-    return stored ? normalizeState(JSON.parse(stored) as Partial<AppState>) : null;
-  } catch (error) {
-    console.warn("Could not load localStorage", error);
-    return null;
-  }
-}
-
-export function saveStateToStorage(state: AppState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 export function normalizeState(raw: Partial<AppState>): AppState {

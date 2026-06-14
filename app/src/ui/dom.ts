@@ -1,6 +1,43 @@
 import { tokenizeAssembly } from "../core/assembly";
 import { getLabelColor } from "../core/labels";
-import type { AppElements } from "../core/model";
+
+export interface AppElements {
+  layoutRoot: HTMLElement;
+  collapseSidebarBtn: HTMLButtonElement;
+  expandSidebarBtn: HTMLButtonElement;
+  titleInput: HTMLInputElement;
+  cyclesInput: HTMLInputElement;
+  instructionsInput: HTMLTextAreaElement;
+  exportMenuBtn: HTMLButtonElement;
+  exportMenu: HTMLElement;
+  copyExportBtn: HTMLButtonElement;
+  importInput: HTMLTextAreaElement;
+  importBtn: HTMLButtonElement;
+  clearBtn: HTMLButtonElement;
+  saveStatus: HTMLElement;
+  tableShell: HTMLElement;
+  instructionMount: HTMLElement;
+  cycleViewport: HTMLElement;
+  tableMount: HTMLElement;
+  arrowLayer: SVGSVGElement;
+  exportModal: HTMLElement;
+  exportOutput: HTMLTextAreaElement;
+  closeExportBtn: HTMLButtonElement;
+  downloadExportBtn: HTMLButtonElement;
+  labelModal: HTMLElement;
+  labelInput: HTMLInputElement;
+  labelModalTitle: HTMLElement;
+  saveLabelBtn: HTMLButtonElement;
+  cancelLabelBtn: HTMLButtonElement;
+  confirmModal: HTMLElement;
+  confirmModalTitle: HTMLElement;
+  confirmModalMessage: HTMLElement;
+  acceptConfirmBtn: HTMLButtonElement;
+  cancelConfirmBtn: HTMLButtonElement;
+  cellMenu: HTMLElement;
+  rowMenu: HTMLElement;
+  autocompleteMenu: HTMLElement;
+}
 
 export function getAppElements(): AppElements {
   return {
@@ -25,11 +62,17 @@ export function getAppElements(): AppElements {
     exportModal: byId("exportModal", HTMLElement),
     exportOutput: byId("exportOutput", HTMLTextAreaElement),
     closeExportBtn: byId("closeExportBtn", HTMLButtonElement),
+    downloadExportBtn: byId("downloadExportBtn", HTMLButtonElement),
     labelModal: byId("labelModal", HTMLElement),
     labelInput: byId("labelInput", HTMLInputElement),
     labelModalTitle: byId("labelModalTitle", HTMLElement),
     saveLabelBtn: byId("saveLabelBtn", HTMLButtonElement),
     cancelLabelBtn: byId("cancelLabelBtn", HTMLButtonElement),
+    confirmModal: byId("confirmModal", HTMLElement),
+    confirmModalTitle: byId("confirmModalTitle", HTMLElement),
+    confirmModalMessage: byId("confirmModalMessage", HTMLElement),
+    acceptConfirmBtn: byId("acceptConfirmBtn", HTMLButtonElement),
+    cancelConfirmBtn: byId("cancelConfirmBtn", HTMLButtonElement),
     cellMenu: byId("cellMenu", HTMLElement),
     rowMenu: byId("rowMenu", HTMLElement),
     autocompleteMenu: byId("autocompleteMenu", HTMLElement)

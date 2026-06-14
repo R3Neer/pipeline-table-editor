@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "screenshots": "tsx tests/capture-screenshots.ts",
     "test:unit": "tsx tests/core.test.ts",
+    "test:integration": "tsx tests/integration.test.ts",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:smoke",
     "test:smoke": "tsx tests/browser-smoke.ts"
   },
   "devDependencies": {

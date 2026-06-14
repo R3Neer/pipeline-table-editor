@@ -303,8 +303,10 @@ try {
   await cell(page, 0, 0).click({ button: "right" });
   await page.locator('#cellMenu [data-action="expand"]').click();
   await expectClass(page, 0, 0, "expand-from");
-  page.once("dialog", (dialog) => dialog.accept());
   await cell(page, 0, 2).click();
+  await page.locator("#confirmModal").waitFor({ state: "visible" });
+  await page.locator("#confirmModalTitle").getByText("Overwrite cells").waitFor({ state: "visible" });
+  await page.click("#acceptConfirmBtn");
   assert.equal(await cell(page, 0, 0).inputValue(), "EX1");
   assert.equal(await cell(page, 0, 1).inputValue(), "EX2");
   assert.equal(await cell(page, 0, 2).inputValue(), "EX3");
@@ -312,8 +314,9 @@ try {
   await fillCell(page, 0, 3, "MEM2");
   await cell(page, 0, 3).click({ button: "right" });
   await page.locator('#cellMenu [data-action="expand"]').click();
-  page.once("dialog", (dialog) => dialog.accept());
   await cell(page, 0, 5).click();
+  await page.locator("#confirmModal").waitFor({ state: "visible" });
+  await page.click("#acceptConfirmBtn");
   assert.equal(await cell(page, 0, 3).inputValue(), "MEM2");
   assert.equal(await cell(page, 0, 4).inputValue(), "MEM3");
   assert.equal(await cell(page, 0, 5).inputValue(), "MEM4");
@@ -467,14 +470,14 @@ try {
   await cell(page, 0, 2).click({ button: "right" });
   await page.locator('#cellMenu [data-action="arrow"]').click();
   await cell(page, 1, 4).click();
-  assert.equal(await page.locator("#arrowLayer path.arrow-path").count(), 1);
+  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 1);
   await cell(page, 0, 3).click({ button: "right" });
   await page.locator('#cellMenu [data-action="arrow"]').click();
   await cell(page, 1, 4).hover();
   await expectNoClass(page, 1, 4, "arrow-target-valid");
   await cell(page, 1, 4).click();
   await expectNoClass(page, 0, 3, "arrow-from");
-  assert.equal(await page.locator("#arrowLayer path.arrow-path").count(), 1);
+  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 1);
   await cell(page, 0, 2).click({ button: "right" });
   await page.locator("#cellMenu").getByText("Strike").click();
   await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 0);
@@ -503,6 +506,10 @@ try {
   assert.equal(exported.cycles, 6);
   assert.equal(exported.rows[0].cells[4].struck, true);
   assert.equal(exported.arrows[0].label, "");
+  const jsonDownloadPromise = page.waitForEvent("download");
+  await page.click("#downloadExportBtn");
+  const jsonDownload = await jsonDownloadPromise;
+  assert.equal(jsonDownload.suggestedFilename(), "smoke-test.json");
   await page.click("#closeExportBtn");
 
   await page.click("#exportMenuBtn");
@@ -510,12 +517,20 @@ try {
   const markdown = await page.inputValue("#exportOutput");
   assert.match(markdown, /~~WB~~/);
   assert.match(markdown, /Forwarding/);
+  const markdownDownloadPromise = page.waitForEvent("download");
+  await page.click("#downloadExportBtn");
+  const markdownDownload = await markdownDownloadPromise;
+  assert.equal(markdownDownload.suggestedFilename(), "smoke-test.md");
   await page.click("#closeExportBtn");
 
   await page.click("#exportMenuBtn");
   await page.locator('#exportMenu [data-export-format="text"]').click();
   const text = await page.inputValue("#exportOutput");
   assert.match(text, /Forwarding:/);
+  const textDownloadPromise = page.waitForEvent("download");
+  await page.click("#downloadExportBtn");
+  const textDownload = await textDownloadPromise;
+  assert.equal(textDownload.suggestedFilename(), "smoke-test.txt");
   await page.click("#closeExportBtn");
 
   await page.click("#exportMenuBtn");

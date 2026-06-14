@@ -5,14 +5,9 @@ import { canStartExpand as canStartExpandStage, makeExpansionValues, wouldChange
 import { getKnownLabels, getLabelColor, normalizeRowLabel } from "./core/labels";
 import type {
   AppState,
-  ArrowDraft,
   CellPosition,
-  ContextAction,
-  CopiedCell,
-  ExpandDraft,
-  ExportFormat,
-  RowContextAction
 } from "./core/model";
+import type { ArrowDraft, CopiedCell, ExpandDraft } from "./app/sessionTypes";
 import { makeRectangularSelection, makeVerticalSelection, parsePositionKey, positionKey } from "./core/selection";
 import {
   getRowActionTargets as getSelectedRowTargets,
@@ -20,13 +15,25 @@ import {
   moveRows,
   removeRows
 } from "./core/rows";
-import { createDefaultState, loadState, makeRow, normalizeState, saveStateToStorage } from "./core/state";
-import { getValidRoot, isCellTextValid, normalizeCellText } from "./core/validation";
-import { exportJson, exportMarkdown, exportPng, exportText } from "./export/index";
+import { createDefaultState, makeRow, normalizeState } from "./core/state";
+import {
+  applyInstructionText,
+  changeCycleCount,
+  pruneArrowsFromStruckCells as pruneStruckCellArrows,
+  removeOutgoingArrows as removeOutgoingArrowsFromState,
+  wouldLoseCellsAfterCycleReduction
+} from "./core/useCases/tableEditing";
+import { normalizeCellText } from "./core/validation";
+import { exportPng } from "./export/index";
+import { createTextExportFile } from "./export/service";
+import type { ExportFormat } from "./export/types";
+import { loadStateFromStorage, saveStateToStorage } from "./integration/storage";
 import { drawArrows as drawArrowLayer } from "./ui/arrows";
 import { createAutocompleteController } from "./ui/autocomplete";
+import { getCellClassName } from "./ui/cellClasses";
 import { getAppElements, getInputPosition, renderAssemblyHighlight } from "./ui/dom";
 import { downloadBlob, makeDownloadSlug } from "./ui/download";
+import type { ContextAction, RowContextAction } from "./ui/menuActions";
 import { placeFloatingElement, placeSubmenu } from "./ui/positioning";
 import { createSplitTableController } from "./ui/splitTable";
 
@@ -34,7 +41,7 @@ const elements = getAppElements();
 const autocomplete = createAutocompleteController(elements.autocompleteMenu);
 const splitTable = createSplitTableController(elements, () => drawArrows());
 
-let state: AppState = loadState() || createDefaultState();
+let state: AppState = loadStateFromStorage() || createDefaultState();
 let selectedCell: CellPosition | null = null;
 let selectionAnchor: CellPosition | null = null;
 let selectedCellKeys = new Set<string>();
@@ -49,6 +56,8 @@ let arrowDraft: ArrowDraft = { from: null };
 let arrowHoverTarget: CellPosition | null = null;
 let expandDraft: ExpandDraft = { from: null };
 let saveTimer = 0;
+let confirmResolver: ((value: boolean) => void) | null = null;
+let activeTextExportFormat: Exclude<ExportFormat, "png"> | null = null;
 
 const minInstructionColumnWidth = 320;
 const maxInstructionColumnWidth = 520;
@@ -60,6 +69,43 @@ function render(): void {
   renderTable();
   renderSelectionInfo();
   window.requestAnimationFrame(drawArrows);
+}
+
+function showConfirm(title: string, message: string, acceptText = "Continue"): Promise<boolean> {
+  closeConfirmModal(false);
+  elements.confirmModalTitle.textContent = title;
+  elements.confirmModalMessage.textContent = message;
+  elements.acceptConfirmBtn.textContent = acceptText;
+  elements.cancelConfirmBtn.hidden = false;
+  elements.confirmModal.classList.add("is-warning");
+  elements.confirmModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => elements.cancelConfirmBtn.focus(), 0);
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+  });
+}
+
+function showNotice(title: string, message: string): Promise<boolean> {
+  closeConfirmModal(false);
+  elements.confirmModalTitle.textContent = title;
+  elements.confirmModalMessage.textContent = message;
+  elements.acceptConfirmBtn.textContent = "OK";
+  elements.cancelConfirmBtn.hidden = true;
+  elements.confirmModal.classList.remove("is-warning");
+  elements.confirmModal.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => elements.acceptConfirmBtn.focus(), 0);
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+  });
+}
+
+function closeConfirmModal(value: boolean): void {
+  elements.confirmModal.setAttribute("aria-hidden", "true");
+  if (confirmResolver) {
+    const resolve = confirmResolver;
+    confirmResolver = null;
+    resolve(value);
+  }
 }
 
 function renderTable(): void {
@@ -102,7 +148,7 @@ function renderTable(): void {
       const td = document.createElement("td");
       td.className = "cycle-col";
       const input = document.createElement("input");
-      input.className = getCellClassForPosition(cell.text, cell.struck, rowIndex, cycleIndex);
+      input.className = getCellClassForPosition(rowIndex, cycleIndex);
       input.value = cell.text;
       input.dataset.row = String(rowIndex);
       input.dataset.cycle = String(cycleIndex);
@@ -247,44 +293,21 @@ function makeInstructionScrollbarSpacer(): HTMLElement {
   return spacer;
 }
 
-function getCellClassForPosition(text: string, struck: boolean, row: number, cycle: number): string {
-  const classes = ["stage-input"];
-  const value = text.trim();
-  const root = getValidRoot(value);
-
-  if (value && !isCellTextValid(value, state, { row, cycle })) {
-    classes.push("stage-invalid");
-  } else if (root) {
-    classes.push(`stage-${root.toLowerCase()}`);
-    if (value.endsWith("p")) classes.push("stage-p");
-  }
-
-  if (struck) classes.push("stage-struck");
-  if (selectedCell && selectedCell.row === row && selectedCell.cycle === cycle) classes.push("selected");
-  if (isMultiSelection() && selectedCellKeys.has(positionKey({ row, cycle }))) classes.push("multi-selected");
-  if (arrowDraft.from && arrowDraft.from.row === row && arrowDraft.from.cycle === cycle) {
-    classes.push("arrow-from");
-  }
-  if (
-    arrowDraft.from &&
-    arrowHoverTarget &&
-    arrowHoverTarget.row === row &&
-    arrowHoverTarget.cycle === cycle &&
-    isValidArrowTarget(arrowDraft.from, arrowHoverTarget, state)
-  ) {
-    classes.push("arrow-target-valid");
-  }
-  if (expandDraft.from && expandDraft.from.row === row && expandDraft.from.cycle === cycle) {
-    classes.push("expand-from");
-  }
-  return classes.join(" ");
+function getCellClassForPosition(row: number, cycle: number): string {
+  return getCellClassName(state, { row, cycle }, {
+    selectedCell,
+    selectedCellKeys,
+    arrowFrom: arrowDraft.from,
+    arrowHoverTarget,
+    expandFrom: expandDraft.from
+  });
 }
 
 function refreshCellClasses(): void {
   document.querySelectorAll<HTMLInputElement>(".stage-input").forEach((input) => {
     const pos = getInputPosition(input);
     const cell = state.rows[pos.row].cells[pos.cycle];
-    input.className = getCellClassForPosition(cell.text, cell.struck, pos.row, pos.cycle);
+    input.className = getCellClassForPosition(pos.row, pos.cycle);
   });
 }
 
@@ -317,7 +340,7 @@ function onCellClick(event: MouseEvent): void {
   selectedCell = getInputPosition(input);
   hideContextMenu();
   if (expandDraft.from && !samePos(expandDraft.from, selectedCell)) {
-    tryExpandTo(selectedCell);
+    void tryExpandTo(selectedCell);
     return;
   }
   if (arrowDraft.from) {
@@ -591,29 +614,7 @@ function pasteCell(pos = selectedCell): void {
 }
 
 function applyInstructions(): void {
-  const lines = elements.instructionsInput.value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const nextRows = lines.map((instruction, index) => {
-    const previous = state.rows[index];
-    return previous
-      ? {
-          instruction,
-          cells: previous.cells.slice(0, state.cycles).concat(makeMissingCells(previous.cells.length)),
-          label: previous.label,
-          separatorBefore: previous.separatorBefore
-        }
-      : makeRow(instruction, state.cycles);
-  });
-
-  state.rows = nextRows.map((row) => ({
-    instruction: row.instruction,
-    cells: Array.from({ length: state.cycles }, (_, index) => row.cells[index] || { text: "", struck: false }),
-    label: row.label,
-    separatorBefore: row.separatorBefore
-  }));
-  state.arrows = state.arrows.filter((arrow) => arrow.from.row < state.rows.length && arrow.to.row < state.rows.length);
+  applyInstructionText(state, elements.instructionsInput.value);
   selectedCell = null;
   clearSelection();
   clearRowSelection();
@@ -621,10 +622,6 @@ function applyInstructions(): void {
   expandDraft = { from: null };
   render();
   scheduleSave();
-}
-
-function makeMissingCells(start: number): Array<{ text: string; struck: boolean }> {
-  return Array.from({ length: Math.max(0, state.cycles - start) }, () => ({ text: "", struck: false }));
 }
 
 function addInstruction(): void {
@@ -639,18 +636,18 @@ function addInstruction(): void {
 }
 
 function removeRow(rowIndex: number): void {
-  removeSelectedRows([rowIndex]);
+  void removeSelectedRows([rowIndex]);
 }
 
 function removeRowsFrom(rowIndex: number): void {
-  removeSelectedRows(getRowActionTargets(rowIndex));
+  void removeSelectedRows(getRowActionTargets(rowIndex));
 }
 
-function removeSelectedRows(rowIndexes: number[]): void {
+async function removeSelectedRows(rowIndexes: number[]): Promise<void> {
   const targets = rowIndexes.filter((index) => index >= 0 && index < state.rows.length);
   if (!targets.length) return;
   const message = targets.length > 1 ? "Delete selected instructions?" : "Delete this instruction?";
-  if (targets.some(isRowNonEmpty) && !window.confirm(message)) return;
+  if (targets.some(isRowNonEmpty) && !(await showConfirm("Delete instructions", message, "Delete"))) return;
   if (!removeRows(state, targets)) return;
   clearRowSelection();
   render();
@@ -682,28 +679,19 @@ function getRowActionTargets(fallback: number): number[] {
   return getSelectedRowTargets(selectedRows, fallback);
 }
 
-function changeCycles(): void {
+async function changeCycles(): Promise<void> {
   const nextCycles = Math.max(1, Number.parseInt(elements.cyclesInput.value, 10) || 1);
   if (nextCycles === state.cycles) return;
-  if (nextCycles < state.cycles && wouldLoseCells(nextCycles)) {
-    const ok = window.confirm("Reducing cycles will delete content. Continue?");
+  if (nextCycles < state.cycles && wouldLoseCellsAfterCycleReduction(state, nextCycles)) {
+    const ok = await showConfirm("Reduce cycles", "Reducing cycles will delete content. Continue?", "Reduce");
     if (!ok) {
       elements.cyclesInput.value = String(state.cycles);
       return;
     }
   }
-  state.cycles = nextCycles;
-  state.rows.forEach((row) => {
-    if (row.cells.length > nextCycles) row.cells = row.cells.slice(0, nextCycles);
-    while (row.cells.length < nextCycles) row.cells.push({ text: "", struck: false });
-  });
-  state.arrows = state.arrows.filter((arrow) => arrow.from.cycle < nextCycles && arrow.to.cycle < nextCycles);
+  changeCycleCount(state, nextCycles);
   render();
   scheduleSave();
-}
-
-function wouldLoseCells(nextCycles: number): boolean {
-  return state.rows.some((row) => row.cells.slice(nextCycles).some((cell) => cell.text.trim() || cell.struck));
 }
 
 function showContextMenu(x: number, y: number): void {
@@ -940,7 +928,7 @@ function cancelArrowDraft(): void {
   arrowHoverTarget = null;
 }
 
-function tryExpandTo(to: CellPosition): void {
+async function tryExpandTo(to: CellPosition): Promise<void> {
   const from = expandDraft.from;
   if (!from) return;
   if (to.row !== from.row || to.cycle <= from.cycle) {
@@ -960,7 +948,10 @@ function tryExpandTo(to: CellPosition): void {
     return;
   }
 
-  if (wouldChangeFilledCells(state, from, values) && !window.confirm("Expansion will overwrite filled cells. Continue?")) {
+  if (
+    wouldChangeFilledCells(state, from, values) &&
+    !(await showConfirm("Overwrite cells", "Expansion will overwrite filled cells. Continue?", "Overwrite"))
+  ) {
     expandDraft = { from: null };
     refreshCellClasses();
     return;
@@ -982,7 +973,8 @@ function canStartExpand(pos: CellPosition): boolean {
   return canStartExpandStage(state, pos);
 }
 
-function removeArrow(index: number): void {
+async function removeArrow(index: number): Promise<void> {
+  if (!(await showConfirm("Delete arrow", "Delete this arrow?", "Delete"))) return;
   state.arrows.splice(index, 1);
   render();
   scheduleSave();
@@ -1026,9 +1018,18 @@ async function showExport(format: ExportFormat): Promise<void> {
     await downloadPngExport();
     return;
   }
-  const output = format === "json" ? exportJson(state) : format === "markdown" ? exportMarkdown(state) : exportText(state);
+  const output = createTextExportFile(state, format).content;
+  activeTextExportFormat = format;
   elements.exportOutput.value = output;
   elements.exportModal.setAttribute("aria-hidden", "false");
+}
+
+function downloadTextExport(): void {
+  if (!activeTextExportFormat) return;
+  const file = createTextExportFile(state, activeTextExportFormat);
+  const blob = new Blob([elements.exportOutput.value], { type: file.mimeType });
+  downloadBlob(blob, `${makeDownloadSlug(state.title || "pipeline-table")}.${file.extension}`);
+  showStatus("File exported");
 }
 
 async function downloadPngExport(): Promise<void> {
@@ -1037,11 +1038,12 @@ async function downloadPngExport(): Promise<void> {
     downloadBlob(blob, `${makeDownloadSlug(state.title || "pipeline-table")}.png`);
     showStatus("PNG exported");
   } catch (error) {
-    window.alert(`PNG export failed: ${error instanceof Error ? error.message : String(error)}`);
+    await showNotice("PNG export failed", error instanceof Error ? error.message : String(error));
   }
 }
 
 function hideExport(): void {
+  activeTextExportFormat = null;
   elements.exportModal.setAttribute("aria-hidden", "true");
 }
 
@@ -1056,7 +1058,7 @@ function hideExportMenu(): void {
   elements.exportMenuBtn.setAttribute("aria-expanded", "false");
 }
 
-function importJson(): void {
+async function importJson(): Promise<void> {
   try {
     const raw = JSON.parse(elements.importInput.value) as Partial<AppState>;
     state = normalizeState(raw);
@@ -1068,7 +1070,7 @@ function importJson(): void {
     render();
     saveState(true);
   } catch (error) {
-    window.alert(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    await showNotice("Invalid JSON", error instanceof Error ? error.message : String(error));
   }
 }
 
@@ -1083,8 +1085,8 @@ async function copyExport(): Promise<void> {
   }
 }
 
-function clearAll(): void {
-  if (!window.confirm("Clear the whole table?")) return;
+async function clearAll(): Promise<void> {
+  if (!(await showConfirm("Clear table", "Clear the whole table?", "Clear"))) return;
   state = createDefaultState();
   selectedCell = null;
   clearSelection();
@@ -1095,15 +1097,11 @@ function clearAll(): void {
 }
 
 function removeOutgoingArrows(pos: CellPosition): boolean {
-  const before = state.arrows.length;
-  state.arrows = state.arrows.filter((arrow) => !samePos(arrow.from, pos));
-  return state.arrows.length !== before;
+  return removeOutgoingArrowsFromState(state, pos);
 }
 
 function pruneArrowsFromStruckCells(): boolean {
-  const before = state.arrows.length;
-  state.arrows = state.arrows.filter((arrow) => !state.rows[arrow.from.row]?.cells[arrow.from.cycle]?.struck);
-  return state.arrows.length !== before;
+  return pruneStruckCellArrows(state);
 }
 
 function scheduleSave(): void {
@@ -1134,6 +1132,7 @@ function cancelTransientUi(): void {
   autocomplete.hide();
   hideExport();
   hideLabelModal();
+  closeConfirmModal(false);
   refreshCellClasses();
   renderSelectionInfo();
 }
@@ -1142,7 +1141,9 @@ elements.titleInput.addEventListener("input", () => {
   state.title = elements.titleInput.value;
   scheduleSave();
 });
-elements.cyclesInput.addEventListener("change", changeCycles);
+elements.cyclesInput.addEventListener("change", () => {
+  void changeCycles();
+});
 elements.instructionsInput.addEventListener("input", applyInstructions);
 elements.exportMenuBtn.addEventListener("click", (event) => {
   event.stopPropagation();
@@ -1155,8 +1156,13 @@ elements.exportMenu.addEventListener("click", (event) => {
   void showExport(button.dataset.exportFormat as ExportFormat);
 });
 elements.copyExportBtn.addEventListener("click", copyExport);
-elements.importBtn.addEventListener("click", importJson);
-elements.clearBtn.addEventListener("click", clearAll);
+elements.downloadExportBtn.addEventListener("click", downloadTextExport);
+elements.importBtn.addEventListener("click", () => {
+  void importJson();
+});
+elements.clearBtn.addEventListener("click", () => {
+  void clearAll();
+});
 elements.collapseSidebarBtn.addEventListener("click", () => {
   elements.layoutRoot.classList.add("sidebar-collapsed");
   window.requestAnimationFrame(drawArrows);
@@ -1183,6 +1189,11 @@ elements.labelInput.addEventListener("keydown", (event) => {
 });
 elements.labelModal.addEventListener("click", (event) => {
   if (event.target === elements.labelModal) hideLabelModal();
+});
+elements.acceptConfirmBtn.addEventListener("click", () => closeConfirmModal(true));
+elements.cancelConfirmBtn.addEventListener("click", () => closeConfirmModal(false));
+elements.confirmModal.addEventListener("click", (event) => {
+  if (event.target === elements.confirmModal) closeConfirmModal(false);
 });
 elements.cellMenu.addEventListener("click", (event) => {
   const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button[data-action]") : null;

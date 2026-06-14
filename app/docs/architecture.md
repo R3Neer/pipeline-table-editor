@@ -10,18 +10,23 @@ The main design goal is to keep pipeline-table editing explicit and predictable.
 
 Pipeline Table Editor is a client-only static web app. It has one in-memory `AppState`, rendered directly into the DOM by the application coordinator. User actions mutate that state, refresh the affected UI, schedule persistence, and redraw SVG forwarding arrows when needed. The table is rendered as a fixed instruction pane next to a horizontally scrollable cycle viewport so instruction labels stay visible while navigating long timelines.
 
-The code follows a simple three-part split:
+The code follows a small layered split:
 
 - `core/`: domain model and deterministic rules with no direct DOM access.
+- `core/useCases/`: deterministic state-changing workflows with no direct DOM access.
+- `app/`: transient application-session types that are not part of the persisted model.
+- `integration/`: adapters for browser integration points such as `localStorage`.
 - `ui/`: browser-facing helpers for DOM lookup, autocomplete rendering, SVG arrows, and downloads.
 - `export/`: output generation for JSON, Markdown, plain text, and PNG.
 
-`main.ts` is intentionally the only broad coordinator. It connects browser events, mutable state, rendering, persistence, and feature modules. It should not accumulate new pure rules when those rules can live in `core/`.
+`main.ts` is intentionally the only broad coordinator. It connects browser events, mutable state, rendering, persistence adapters, and feature modules. It should not accumulate new pure rules when those rules can live in `core/`.
 
 ## Directory Layout
 
 ```text
 app/src/
+├─ app/
+│  └─ sessionTypes.ts
 ├─ main.ts
 ├─ styles.css
 ├─ core/
@@ -35,15 +40,23 @@ app/src/
 │  ├─ selection.ts
 │  ├─ stage.ts
 │  ├─ state.ts
+│  ├─ useCases/
+│  │  └─ tableEditing.ts
 │  └─ validation.ts
+├─ integration/
+│  └─ storage.ts
 ├─ export/
 │  ├─ image.ts
-│  └─ index.ts
+│  ├─ index.ts
+│  ├─ service.ts
+│  └─ types.ts
 └─ ui/
    ├─ arrows.ts
    ├─ autocomplete.ts
+   ├─ cellClasses.ts
    ├─ dom.ts
    ├─ download.ts
+   ├─ menuActions.ts
    ├─ positioning.ts
    └─ splitTable.ts
 ```
@@ -54,23 +67,35 @@ app/src/
 flowchart TD
   Browser["Browser DOM"]
   Main["Application coordinator\nmain"]
+  App["app/\nSession-only types"]
   Core["core/\nPure-ish domain rules and state"]
+  UseCases["core/useCases\nState-changing workflows"]
+  Integration["integration/\nBrowser adapters"]
   UI["ui/\nDOM helpers and visual widgets"]
   Export["export/\nText and image output"]
   Storage["localStorage"]
 
   Browser --> Main
+  Main --> App
   Main --> Core
+  Main --> UseCases
+  Main --> Integration
   Main --> UI
   Main --> Export
-  Main --> Storage
+  Integration --> Storage
   UI --> Core
   Export --> Core
 ```
 
-The application coordinator owns the mutable app state, wires events, calls domain helpers, updates the DOM, schedules persistence, and redraws arrows.
+The application coordinator owns the mutable app state, wires events, calls domain helpers, updates the DOM, schedules persistence through integration adapters, and redraws arrows.
 
-The `core/` modules avoid direct DOM access. They hold the data model, stage parsing, validation rules, selection utilities, expansion rules, assembly tokenization, and persisted-state normalization.
+The `core/` modules avoid direct DOM and browser-storage access. They hold the serializable data model, stage parsing, validation rules, selection utilities, expansion rules, assembly tokenization, and persisted-state normalization.
+
+The `core/useCases/` modules own deterministic state-changing workflows that are still business logic, such as applying instruction text, changing cycle count, and pruning arrows after edits.
+
+The `app/` modules hold session-only interaction types. These are intentionally outside `core/model.ts` so the persisted model stays focused on serializable domain state.
+
+The `integration/` modules adapt external browser services to the app. They may call browser APIs, but they should keep that work thin and delegate parsing or validation back to `core/`.
 
 The `ui/` modules work with DOM-specific behavior: locating elements, rendering autocomplete options, drawing SVG arrows, and triggering browser downloads.
 
@@ -81,7 +106,8 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Area | Modules | Responsibility |
 | --- | --- | --- |
 | Application coordination | `main.ts` | Owns `AppState`, renders the table, handles events, coordinates persistence, arrows, autocomplete, context menu actions, import, and export. |
-| Domain model | `core/model.ts` | Defines serializable state and UI helper types. |
+| Session types | `app/sessionTypes.ts` | Defines transient copied-cell and draft interaction state. |
+| Domain model | `core/model.ts` | Defines serializable pipeline-table state. |
 | Row labels | `core/labels.ts` | Normalizes labels and assigns stable, subdued colors. |
 | Stage syntax | `core/stage.ts` | Normalizes and parses stage text such as `IF`, `EX2`, or `IDp`. |
 | Autocomplete rules | `core/autocomplete.ts` | Builds ranked stage suggestions from state, current input, pending-stage propagation, and local numbering habits. |
@@ -90,15 +116,19 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Row rules | `core/rows.ts` | Moves and removes instruction rows, remaps arrows, and computes row action targets for single or multi-row selection. |
 | Expansion | `core/expansion.ts` | Computes `Expand` results and whether filled cells would actually change. |
 | Selection | `core/selection.ts` | Builds rectangular, vertical, and keyed multi-cell selections. |
-| Persistence | `core/state.ts` | Creates, normalizes, loads, and saves serializable app state. |
+| State rules | `core/state.ts` | Creates default state, rows, and normalizes serializable app state. |
+| Table-editing use cases | `core/useCases/tableEditing.ts` | Applies instruction text, changes cycle count, removes outgoing arrows, and prunes struck-cell arrows without DOM access. |
 | Assembly highlighting | `core/assembly.ts` | Tokenizes assembly instructions into instruction/register/plain tokens. |
+| Browser persistence | `integration/storage.ts` | Loads/saves normalized state through `localStorage`. |
 | DOM helpers | `ui/dom.ts` | Reads required DOM elements and renders highlighted instruction text. |
 | Autocomplete UI | `ui/autocomplete.ts` | Displays suggestions, handles active option movement, and emits accepted values. |
+| Cell class composition | `ui/cellClasses.ts` | Translates domain and session state into stable CSS class names for stage cells. |
 | Arrow drawing | `ui/arrows.ts` | Regenerates SVG paths and arrowheads from stored arrow positions. |
 | Download helpers | `ui/download.ts` | Creates object URLs and triggers browser downloads. |
 | Floating positioning | `ui/positioning.ts` | Keeps autocomplete menus, context menus, and submenus inside the viewport. |
 | Split table layout | `ui/splitTable.ts` | Synchronizes instruction and cycle panes, vertical wheel scrolling, row heights, overflow classes, and bottom breathing room. |
 | Text exports | `export/index.ts` | Generates JSON, Markdown, and plain text. |
+| Export service | `export/service.ts` | Chooses text export content and file metadata such as MIME type and extension. |
 | Image export | `export/image.ts` | Renders a high-resolution PNG with canvas. |
 
 ## Design Pattern Notes
@@ -109,7 +139,7 @@ The project uses patterns only where they remove real coupling:
 - The autocomplete engine is intentionally closer to a set of pure Strategy-like candidate rules than to a class hierarchy. Keeping those rules as functions makes them easy to test without introducing unnecessary objects.
 - `main.ts` still behaves as an application coordinator/facade for browser events. A full Command pattern for every menu action was considered unnecessary for the current size because actions are simple and already covered by tests.
 
-This keeps the code aligned with SOLID in the practical sense: domain rules are testable without the DOM, UI helpers own browser mechanics, and abstractions are introduced only where they reduce concrete coupling.
+This keeps the code aligned with SOLID in the practical sense: domain rules are testable without the DOM or browser storage, integration adapters isolate external services, UI helpers own browser presentation mechanics, and abstractions are introduced only where they reduce concrete coupling.
 
 ## Core Model
 
@@ -180,7 +210,7 @@ Each cell stores only user-authored stage text and whether it is struck through.
 
 ## Stage Parsing And Validation
 
-Stage parsing is centralized in `core/stage.ts`. Higher-level stage validation lives in `core/validation.ts`.
+Stage parsing is centralized in `core/stage.ts`. Higher-level stage validation lives in `core/validation.ts` as a `CellValidationRule[]` pipeline.
 
 Accepted stage roots:
 
@@ -211,6 +241,8 @@ flowchart TD
 ```
 
 Validation is intentionally visual. Invalid cells are marked with `stage-invalid`; editing remains unrestricted.
+
+`validateCellText()` returns both a boolean result and the failed rule id. `createCellValidator()` builds alternate validators from custom rule lists, which keeps new validation modes open for extension without forcing callers to grow more conditional logic.
 
 Important validation rules:
 
@@ -271,10 +303,12 @@ sequenceDiagram
 
 Autocomplete is split in two layers:
 
-- `core/autocomplete.ts` is a pure suggestion engine. It receives `AppState`, a `CellPosition`, and the raw input text, then returns ordered string suggestions.
+- `core/autocomplete.ts` is a pure suggestion engine built from ordered `SuggestionProvider` functions. It receives `AppState`, a `CellPosition`, and the raw input text, then returns ordered string suggestions.
 - `ui/autocomplete.ts` is the DOM controller. It positions the menu, renders buttons, moves the active option, and dispatches accepted values.
 
 The core engine builds suggestions through small candidate rules: exact valid input, pending continuation, historical next stage, numbered continuation, next stage root, and allowed local roots. The rules share validation helpers such as `requiresPendingFromAbove` and contextual number checks. That keeps the menu from suggesting stages that the validator already knows cannot be valid, especially around vertical pending-stage propagation and numbered pending stages.
+
+New autocomplete behavior should be added as another provider in the provider list. Providers can add candidates, rely on the shared collector for filtering/deduplication, or return `stop` when no later provider should run.
 
 The historical rule looks only at previous rows. If earlier rows consistently show a transition such as `MEM1 -> MEM2 -> WB`, then `WB` is ranked before speculative continuations such as `MEM3` after the current row reaches `MEM2`.
 
@@ -533,7 +567,7 @@ flowchart TD
   Import["Import JSON"] --> Normalize
 ```
 
-`core/state.ts` normalizes imported or persisted data. It ensures row lengths match the cycle count, cell text is normalized, and arrows are structurally usable before they are kept.
+`core/state.ts` normalizes imported or persisted data. It ensures row lengths match the cycle count, cell text is normalized, and arrows are structurally usable before they are kept. `integration/storage.ts` is the only module that reads or writes `localStorage`.
 
 ## Runtime State And Rendering
 
@@ -544,15 +578,16 @@ The app does not use a virtual DOM or framework state store. Rendering is explic
 3. Individual input handlers update state immediately.
 4. CSS classes are derived from current validation and interaction state.
 5. The SVG arrow layer is redrawn after table updates, scrolling, and resizing.
-6. A debounced save writes the serializable state to `localStorage`.
+6. A debounced save passes the serializable state to the storage integration adapter.
 
 This direct rendering style is simple enough for the size of the project and keeps deployment as a static site.
 
 ## Testing Strategy
 
-The test suite has two complementary layers:
+The test suite has three complementary layers:
 
 - `tests/core.test.ts` runs fast unit tests for DOM-free rules.
+- `tests/integration.test.ts` runs integration-style unit tests around extension seams, adapters, services, visual class composition, and DOM-free use cases.
 - `tests/browser-smoke.ts` exercises the integrated app through a real browser.
 
 The unit tests cover:
@@ -566,6 +601,14 @@ The unit tests cover:
 - arrow target validation
 - row movement/removal with arrow remapping
 - JSON serialization followed by state normalization
+
+The integration-style unit tests cover:
+
+- custom validation rules and custom autocomplete providers
+- `localStorage` adapter behavior through an injected `Storage`
+- export service MIME/extension metadata
+- stage-cell class composition without rendering the full app
+- table-editing use cases for instruction text, cycle changes, and arrow pruning
 
 The smoke test covers:
 
@@ -591,10 +634,12 @@ Keep these boundaries when adding new features:
 
 - Add stage syntax and parsing rules in `core/stage.ts`.
 - Add validation rules in `core/validation.ts`.
-- Add autocomplete ranking or filtering rules in `core/autocomplete.ts`.
+- Add autocomplete ranking or filtering behavior as a `SuggestionProvider` in `core/autocomplete.ts`.
 - Add forwarding-arrow constraints in `core/arrows.ts`.
-- Add deterministic table-editing rules in `core/`.
+- Add deterministic table-editing workflows in `core/useCases/`.
+- Keep transient UI/session types in `app/`, not in `core/model.ts`.
 - Keep row labels and separators as manual annotations; do not use them to infer control flow.
+- Keep browser storage, URL, clipboard, or other external-service adapters in `integration/` when they are not primarily visual UI.
 - Keep DOM queries and element creation in `ui/` or `main.ts`.
 - Keep file/download browser mechanics in `ui/download.ts`.
 - Keep output formats in `export/`.

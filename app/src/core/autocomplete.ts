@@ -10,7 +10,7 @@ interface SuggestionCandidate {
   exactValidInput: boolean;
 }
 
-interface AutocompleteContext {
+export interface AutocompleteContext {
   state: AppState;
   pos: CellPosition;
   normalizedInput: string;
@@ -19,6 +19,11 @@ interface AutocompleteContext {
   canPlacePending: boolean;
   previousStage: ReturnType<typeof parseStageText>;
 }
+
+export type SuggestionProvider = (
+  context: AutocompleteContext,
+  add: (value: string, priority: number) => void
+) => "stop" | void;
 
 interface RootPreference {
   numberedScore: number;
@@ -33,7 +38,21 @@ interface LocalRootNumbering {
 
 const maxSuggestions = 8;
 
-export function getAutocompleteSuggestions(state: AppState, pos: CellPosition, raw: string): string[] {
+export const defaultSuggestionProviders: SuggestionProvider[] = [
+  addExactInputCandidates,
+  addPendingContinuationCandidates,
+  addHistoricalNextCandidates,
+  addNumberedContinuationCandidates,
+  addNextStageRootCandidates,
+  addAllowedRootCandidates
+];
+
+export function getAutocompleteSuggestions(
+  state: AppState,
+  pos: CellPosition,
+  raw: string,
+  providers: SuggestionProvider[] = defaultSuggestionProviders
+): string[] {
   const normalizedInput = normalizeCellText(raw).trim();
   const context: AutocompleteContext = {
     state,
@@ -46,24 +65,10 @@ export function getAutocompleteSuggestions(state: AppState, pos: CellPosition, r
   };
   const collector = createSuggestionCollector(context);
 
-  addExactInputCandidate(context, collector.add);
-
-  if (context.previousStage?.pending) {
-    addPendingContinuationCandidates(context, collector.add);
-    return orderSuggestions(collector.candidates, context.input).slice(0, maxSuggestions);
+  for (const provider of providers) {
+    const result = provider(context, collector.add);
+    if (result === "stop") break;
   }
-
-  addHistoricalNextCandidates(context, collector.add);
-  addNumberedContinuationCandidates(context, collector.add);
-
-  const nextRoot = getNextStageRoot(state, pos);
-  if (nextRoot) {
-    addRootCandidates(context, nextRoot, 2, collector.add);
-  }
-
-  getAllowedRoots(state, pos).forEach((root) => {
-    addRootCandidates(context, root, 10, collector.add);
-  });
 
   return orderSuggestions(collector.candidates, context.input).slice(0, maxSuggestions);
 }
@@ -90,23 +95,27 @@ function createSuggestionCollector(context: AutocompleteContext): {
   };
 }
 
-function addExactInputCandidate(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+function addExactInputCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
   if (context.normalizedInput && isAutocompleteValidInput(context.normalizedInput, context.state, context.pos)) {
     add(context.normalizedInput, -100);
   }
 }
 
-function addPendingContinuationCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+function addPendingContinuationCandidates(
+  context: AutocompleteContext,
+  add: (value: string, priority: number) => void
+): "stop" | void {
   const previousStage = context.previousStage;
   if (!previousStage?.pending) return;
 
   if (context.mustPlacePending) {
     add(formatPendingStageText(previousStage.root, previousStage.number), 0);
-    return;
+    return "stop";
   }
 
   add(formatStageText(previousStage.root, previousStage.number), 0);
   if (context.canPlacePending) add(formatPendingStageText(previousStage.root, previousStage.number), 1);
+  return "stop";
 }
 
 function addHistoricalNextCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
@@ -120,6 +129,17 @@ function addNumberedContinuationCandidates(context: AutocompleteContext, add: (v
 
   add(formatStageText(previousStage.root, previousStage.number + 1), 0);
   if (context.canPlacePending) add(formatPendingStageText(previousStage.root, previousStage.number + 1), 1);
+}
+
+function addNextStageRootCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+  const nextRoot = getNextStageRoot(context.state, context.pos);
+  if (nextRoot) addRootCandidates(context, nextRoot, 2, add);
+}
+
+function addAllowedRootCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+  getAllowedRoots(context.state, context.pos).forEach((root) => {
+    addRootCandidates(context, root, 10, add);
+  });
 }
 
 function addRootCandidates(

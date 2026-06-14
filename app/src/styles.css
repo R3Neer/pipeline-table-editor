@@ -991,6 +991,24 @@ th.instruction-col {
   width: min(380px, 92vw);
 }
 
+.warning-modal {
+  border: 1px solid var(--delete-hover-border);
+}
+
+.warning-modal .modal-header {
+  align-items: flex-start;
+}
+
+.warning-modal h2 {
+  color: var(--danger);
+}
+
+.modal-message {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .modal textarea {
   margin: 12px 0;
   font-family: Consolas, "Courier New", monospace;

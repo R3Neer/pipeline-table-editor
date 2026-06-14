@@ -1,7 +1,7 @@
 import type { AppState, CellPosition, PipelineArrow } from "../core/model";
 
 type CellResolver = (pos: CellPosition) => HTMLInputElement | null;
-type RemoveHandler = (index: number) => void;
+type RemoveHandler = (index: number) => void | Promise<void>;
 
 export function drawArrows(
   scrollContainer: HTMLElement,
@@ -56,7 +56,7 @@ function appendArrowPath(
   path.setAttribute("marker-end", "url(#arrowHead)");
   path.addEventListener("click", (event) => {
     event.stopPropagation();
-    if (window.confirm("Delete this arrow?")) onRemove(index);
+    void onRemove(index);
   });
   arrowLayer.appendChild(path);
 
