@@ -2,6 +2,8 @@
 
 A static web editor for instruction-time pipeline tables.
 
+[Open the web app on GitHub Pages](https://r3neer.github.io/pipeline-table-editor/)
+
 The app helps draw and document pipeline tables: fast cell editing, visual stage validation, crossed-out cells, row labels, visual row separators, forwarding arrows, JSON import/export, Markdown/plain-text export, and local persistence with `localStorage`.
 
 It is not a pipeline simulator: it does not calculate hazards, CPI, conflicts, or insert stalls automatically.
@@ -17,6 +19,14 @@ Additional screenshots:
 - [Context menu](./app/docs/screenshots/context-menu.png)
 - [Export menu](./app/docs/screenshots/export-menu.png)
 - [Validation and autocomplete](./app/docs/screenshots/validation-and-autocomplete.png)
+
+## Web Usage
+
+Use the published app at:
+
+```text
+https://r3neer.github.io/pipeline-table-editor/
+```
 
 ## Local Usage
 
@@ -42,7 +52,7 @@ To create a deployable static build:
 npm run build
 ```
 
-The output is written to `dist/` and can be published to GitHub Pages.
+The output is written to `dist/`.
 
 ## Structure
 
@@ -91,9 +101,9 @@ Labels and separators are manual annotations. They are exported in JSON, Markdow
 
 ## Release
 
-Initial GitHub-ready version: `v0.1.0`.
+Current GitHub-ready version: `v0.2.2`.
 
 GitHub Pages is deployed automatically when a GitHub release is published. The
-workflow builds `app/dist/` and publishes it as the Pages site. In the
-repository settings, set **Pages > Build and deployment > Source** to
-**GitHub Actions**.
+workflow builds `app/dist/` and publishes it at
+`https://r3neer.github.io/pipeline-table-editor/`. It can also be run manually
+from **Actions > Deploy GitHub Pages > Run workflow**.
