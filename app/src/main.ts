@@ -127,10 +127,9 @@ function renderTable(): void {
   elements.instructionMount.replaceChildren(
     instructionTable,
     makeInstructionScrollbarSpacer(),
-    makeAddRowZone(),
-    makeTableBottomSpacer()
+    makeAddRowZone()
   );
-  elements.tableMount.replaceChildren(cycleTable, makeCycleAddRowSpacer(), makeTableBottomSpacer());
+  elements.tableMount.replaceChildren(cycleTable);
   updateInstructionColumnWidth();
   splitTable.syncLayout();
   window.requestAnimationFrame(() => {
@@ -239,20 +238,6 @@ function makeAddRowZone(): HTMLElement {
   button.addEventListener("click", addInstruction);
   zone.appendChild(button);
   return zone;
-}
-
-function makeTableBottomSpacer(): HTMLElement {
-  const spacer = document.createElement("div");
-  spacer.className = "table-bottom-spacer";
-  spacer.setAttribute("aria-hidden", "true");
-  return spacer;
-}
-
-function makeCycleAddRowSpacer(): HTMLElement {
-  const spacer = document.createElement("div");
-  spacer.className = "cycle-add-row-spacer";
-  spacer.setAttribute("aria-hidden", "true");
-  return spacer;
 }
 
 function makeInstructionScrollbarSpacer(): HTMLElement {

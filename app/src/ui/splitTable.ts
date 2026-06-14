@@ -8,41 +8,33 @@ export interface SplitTableElements {
 export interface SplitTableController {
   attach(): void;
   syncLayout(): void;
-  syncInstructionScroll(): void;
 }
 
 const nativeScrollbarReserve = 18;
+const bottomScrollRows = 1.5;
 
 export function createSplitTableController(elements: SplitTableElements, onScroll: () => void): SplitTableController {
-  function syncInstructionScroll(): void {
-    elements.instructionMount.scrollTop = elements.cycleViewport.scrollTop;
-  }
-
   function syncLayout(): void {
     syncTableRowHeights(elements);
     updateCycleViewportOverflow(elements);
-    syncInstructionScroll();
   }
 
   function attach(): void {
-    elements.cycleViewport.addEventListener("scroll", () => {
-      syncInstructionScroll();
-      onScroll();
-    });
+    elements.tableShell.addEventListener("scroll", onScroll);
+    elements.cycleViewport.addEventListener("scroll", onScroll);
     elements.instructionMount.addEventListener(
       "wheel",
       (event) => {
         if (!event.deltaY) return;
         event.preventDefault();
-        elements.cycleViewport.scrollTop += event.deltaY;
-        syncInstructionScroll();
+        elements.tableShell.scrollTop += event.deltaY;
         onScroll();
       },
       { passive: false }
     );
   }
 
-  return { attach, syncLayout, syncInstructionScroll };
+  return { attach, syncLayout };
 }
 
 function syncTableRowHeights(elements: SplitTableElements): void {
@@ -62,23 +54,28 @@ function updateCycleViewportOverflow(elements: SplitTableElements): void {
   const contentHeight = cycleTable?.getBoundingClientRect().height || 0;
   const availableHeight = elements.tableShell.clientHeight;
   const hasHorizontalOverflow = Boolean(cycleTable && cycleTable.getBoundingClientRect().width > elements.cycleViewport.clientWidth + 1);
-  const desiredHeight = Math.ceil(contentHeight + (hasHorizontalOverflow ? nativeScrollbarReserve : 0));
-  const shouldScrollVertically = desiredHeight > availableHeight + 1;
+  const horizontalScrollbarHeight = hasHorizontalOverflow ? nativeScrollbarReserve : 0;
+  const desiredCycleHeight = Math.ceil(contentHeight + horizontalScrollbarHeight);
+  const rowHeight = readCssPixelVariable(elements.tableShell, "--table-row-height", 60);
+  const bottomReserve = rowHeight * bottomScrollRows;
+  const contentNeedsVerticalScroll = Math.max(desiredCycleHeight, elements.instructionMount.scrollHeight) + bottomReserve > availableHeight + 1;
 
-  elements.cycleViewport.style.height = shouldScrollVertically ? `${Math.max(0, availableHeight)}px` : `${desiredHeight}px`;
-  elements.instructionMount.style.height = shouldScrollVertically ? `${Math.max(0, availableHeight)}px` : "";
-  elements.cycleViewport.classList.toggle("has-vertical-overflow", shouldScrollVertically);
-  elements.tableShell.classList.toggle("has-vertical-overflow", shouldScrollVertically);
+  elements.cycleViewport.style.height = `${desiredCycleHeight}px`;
+  elements.instructionMount.style.height = "";
+  elements.tableShell.classList.toggle("has-vertical-overflow", contentNeedsVerticalScroll);
   elements.tableShell.classList.toggle("has-horizontal-overflow", hasHorizontalOverflow);
-
-  const horizontalScrollbarHeight = hasHorizontalOverflow
-    ? Math.max(0, elements.cycleViewport.offsetHeight - elements.cycleViewport.clientHeight, nativeScrollbarReserve)
-    : 0;
+  elements.tableShell.style.setProperty("--table-bottom-scroll-reserve", `${contentNeedsVerticalScroll ? bottomReserve : 0}px`);
   elements.tableShell.style.setProperty("--cycle-horizontal-scrollbar-reserve", `${horizontalScrollbarHeight}px`);
-  if (!shouldScrollVertically) {
-    elements.cycleViewport.scrollTop = 0;
-    elements.instructionMount.scrollTop = 0;
+
+  if (!contentNeedsVerticalScroll) {
+    elements.tableShell.scrollTop = 0;
   }
+}
+
+function readCssPixelVariable(element: HTMLElement, name: string, fallback: number): number {
+  const rawValue = window.getComputedStyle(element).getPropertyValue(name).trim();
+  const value = Number.parseFloat(rawValue);
+  return Number.isFinite(value) ? value : fallback;
 }
 
 function syncElementPairHeight(first: HTMLElement | null, second: HTMLElement | null): void {

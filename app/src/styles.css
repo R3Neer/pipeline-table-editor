@@ -461,12 +461,19 @@ textarea {
   position: relative;
   display: grid;
   grid-template-columns: var(--instruction-col-width) minmax(0, 1fr);
-  overflow: hidden;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: hidden;
   height: 100%;
+  padding-bottom: var(--table-bottom-scroll-reserve, 0px);
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
   box-shadow: var(--table-shadow);
+}
+
+.table-shell.has-vertical-overflow {
+  overflow-y: auto;
 }
 
 .instruction-pane {
@@ -484,10 +491,6 @@ textarea {
   overflow-y: hidden;
   min-width: 0;
   background: var(--surface);
-}
-
-.cycle-viewport.has-vertical-overflow {
-  overflow-y: auto;
 }
 
 .cycle-canvas {
@@ -509,24 +512,6 @@ textarea {
 
 .cycle-table {
   min-width: 100%;
-}
-
-.table-bottom-spacer {
-  display: none;
-  height: calc(var(--table-row-height) * 1.5);
-}
-
-.table-shell.has-vertical-overflow .table-bottom-spacer {
-  display: block;
-}
-
-.cycle-add-row-spacer {
-  display: none;
-  height: var(--table-row-height);
-}
-
-.table-shell.has-vertical-overflow .cycle-add-row-spacer {
-  display: block;
 }
 
 .instruction-scrollbar-spacer {

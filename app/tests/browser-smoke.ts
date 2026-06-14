@@ -635,17 +635,19 @@ async function expectInstructionAndCycleRowsAligned(page: Page) {
 async function expectCycleViewportHasNoUnneededVerticalScroll(page: Page) {
   const result = await page.evaluate(() => {
     const viewport = document.querySelector("#cycleViewport");
-    if (!(viewport instanceof HTMLElement)) return null;
+    const shell = document.querySelector("#tableShell");
+    if (!(viewport instanceof HTMLElement) || !(shell instanceof HTMLElement)) return null;
     return {
       clientHeight: viewport.clientHeight,
       scrollHeight: viewport.scrollHeight,
-      hasVerticalOverflow: viewport.classList.contains("has-vertical-overflow")
+      viewportHasVerticalOverflow: viewport.scrollHeight > viewport.clientHeight + 1,
+      shellHasVerticalOverflow: shell.classList.contains("has-vertical-overflow")
     };
   });
 
   assert.ok(result);
-  assert.ok(result.scrollHeight <= result.clientHeight + 1);
-  assert.equal(result.hasVerticalOverflow, false);
+  assert.equal(result.viewportHasVerticalOverflow, false);
+  assert.equal(result.shellHasVerticalOverflow, false);
 }
 
 async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Page) {
@@ -659,15 +661,15 @@ async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Page) {
   await page.waitForSelector('.stage-input[data-row="17"][data-cycle="0"]');
 
   const result = await page.evaluate(() => {
-    const viewport = document.querySelector("#cycleViewport");
+    const shell = document.querySelector("#tableShell");
     const lastRow = document.querySelector(".cycle-table tbody tr:last-child");
     const lastInstructionRow = document.querySelector(".instruction-table tbody tr:last-child");
-    if (!(viewport instanceof HTMLElement) || !(lastRow instanceof HTMLElement) || !(lastInstructionRow instanceof HTMLElement)) {
+    if (!(shell instanceof HTMLElement) || !(lastRow instanceof HTMLElement) || !(lastInstructionRow instanceof HTMLElement)) {
       return null;
     }
-    viewport.scrollTop = viewport.scrollHeight;
-    viewport.dispatchEvent(new Event("scroll"));
-    const viewportRect = viewport.getBoundingClientRect();
+    shell.scrollTop = shell.scrollHeight;
+    shell.dispatchEvent(new Event("scroll"));
+    const viewportRect = shell.getBoundingClientRect();
     const lastRowRect = lastRow.getBoundingClientRect();
     const lastInstructionRowRect = lastInstructionRow.getBoundingClientRect();
     const rowHeight = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--table-row-height"));
@@ -688,7 +690,7 @@ async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Page) {
     });
     return {
       gap: viewportRect.bottom - lastRowRect.bottom,
-      hasVerticalOverflow: viewport.classList.contains("has-vertical-overflow"),
+      hasVerticalOverflow: shell.classList.contains("has-vertical-overflow"),
       bottomDelta: Math.abs(lastInstructionRowRect.bottom - lastRowRect.bottom),
       topDelta: Math.abs(lastInstructionRowRect.top - lastRowRect.top),
       maxVisibleDelta: Math.max(0, ...visibleDeltas),
@@ -704,25 +706,26 @@ async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Page) {
   assert.ok(result.maxVisibleDelta <= 1);
 
   await page.evaluate(() => {
-    const viewport = document.querySelector("#cycleViewport");
-    const instructionPane = document.querySelector("#instructionMount");
-    if (viewport instanceof HTMLElement) viewport.scrollTop = 0;
-    if (instructionPane instanceof HTMLElement) instructionPane.scrollTop = 0;
+    const shell = document.querySelector("#tableShell");
+    if (shell instanceof HTMLElement) shell.scrollTop = 0;
   });
   await page.locator("#instructionMount").hover({ position: { x: 20, y: 220 } });
   await page.mouse.wheel(0, 360);
   const syncedScroll = await page.evaluate(() => {
-    const viewport = document.querySelector("#cycleViewport");
-    const instructionPane = document.querySelector("#instructionMount");
-    if (!(viewport instanceof HTMLElement) || !(instructionPane instanceof HTMLElement)) return null;
+    const shell = document.querySelector("#tableShell");
+    const firstInstructionRow = document.querySelector(".instruction-table tbody tr:first-child");
+    const firstCycleRow = document.querySelector(".cycle-table tbody tr:first-child");
+    if (!(shell instanceof HTMLElement) || !(firstInstructionRow instanceof HTMLElement) || !(firstCycleRow instanceof HTMLElement)) {
+      return null;
+    }
     return {
-      cycleScrollTop: viewport.scrollTop,
-      instructionScrollTop: instructionPane.scrollTop
+      shellScrollTop: shell.scrollTop,
+      firstRowDelta: Math.abs(firstInstructionRow.getBoundingClientRect().top - firstCycleRow.getBoundingClientRect().top)
     };
   });
   assert.ok(syncedScroll);
-  assert.ok(syncedScroll.cycleScrollTop > 0);
-  assert.equal(Math.round(syncedScroll.instructionScrollTop), Math.round(syncedScroll.cycleScrollTop));
+  assert.ok(syncedScroll.shellScrollTop > 0);
+  assert.ok(syncedScroll.firstRowDelta <= 1);
 
   await page.fill("#instructionsInput", originalInstructions);
   await page.waitForSelector('.stage-input[data-row="2"][data-cycle="0"]');
@@ -732,9 +735,15 @@ async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Page) {
 async function expectHorizontalScrollbarAttachedToTable(page: Page) {
   const result = await page.evaluate(() => {
     const viewport = document.querySelector("#cycleViewport");
+    const shell = document.querySelector("#tableShell");
     const cycleTable = document.querySelector(".cycle-table");
     const instructionSpacer = document.querySelector(".instruction-scrollbar-spacer");
-    if (!(viewport instanceof HTMLElement) || !(cycleTable instanceof HTMLElement) || !(instructionSpacer instanceof HTMLElement)) {
+    if (
+      !(viewport instanceof HTMLElement) ||
+      !(shell instanceof HTMLElement) ||
+      !(cycleTable instanceof HTMLElement) ||
+      !(instructionSpacer instanceof HTMLElement)
+    ) {
       return null;
     }
     const viewportRect = viewport.getBoundingClientRect();
@@ -742,7 +751,7 @@ async function expectHorizontalScrollbarAttachedToTable(page: Page) {
     const spacerRect = instructionSpacer.getBoundingClientRect();
     return {
       gap: viewportRect.bottom - tableRect.bottom,
-      hasVerticalOverflow: viewport.classList.contains("has-vertical-overflow"),
+      hasVerticalOverflow: shell.classList.contains("has-vertical-overflow"),
       spacerHeight: spacerRect.height,
       spacerDisplay: getComputedStyle(instructionSpacer).display
     };
