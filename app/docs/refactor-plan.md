@@ -24,12 +24,25 @@ Allowed code exceptions must explain why the file is large and what would make i
 | `app/src/core/autocomplete.ts` | Autocomplete mixes providers, ranking, stage progression, history, and numbering rules. | Introduce small providers and ranking functions. |
 | `app/src/export/image.ts` | PNG export mixes metrics, rendering, theme, text drawing, cells, and arrows. | Split into layout, drawing, theme, and orchestration modules. |
 | `app/src/core/validation.ts` | Still manageable, but new validation rules will make it grow quickly. | Prepare rule-level modules before adding more rules. |
-| `app/src/ui/dom.ts` | DOM lookup and assembly highlighting were mixed. | Keep DOM lookup separate from presentation helpers. |
+
+Recently resolved hotspot:
+
+- `app/src/ui/dom.ts` no longer mixes DOM lookup with assembly highlighting. Assembly presentation now lives in `app/src/ui/assemblyHighlight.ts`.
+
+## Current Audit Status
+
+`npm run audit:file-sizes` is currently expected to fail. That failure is deliberate: it keeps the largest remaining architecture debt visible while the refactor is underway.
+
+Known `>500` files:
+
+- `app/src/main.ts`
+- `app/src/styles.css`
+- `app/tests/browser-smoke.ts`
 
 ## Refactor Phases
 
-1. Create a clean checkpoint from the current controller extraction.
-2. Add a file-size audit script so oversized files are visible during refactors.
+1. Done: create a clean checkpoint from the current controller extraction.
+2. Done: add a file-size audit script so oversized files are visible during refactors.
 3. Keep thinning `main.ts`:
    - `cellEditingController`
    - `rowEditingController`
@@ -42,6 +55,8 @@ Allowed code exceptions must explain why the file is large and what would make i
 6. Split PNG export into layout/render/theme/orchestration modules.
 7. Split tests by contract and scenario.
 8. Update README, architecture docs, and release notes after each stable phase.
+
+The recommended next phase is to split `app/tests/browser-smoke.ts` into an app driver, fixtures, and scenario files before performing the next large `main.ts` extraction. Cleaner smoke coverage will make the following app/UI refactors safer.
 
 ## Multi-Agent Team
 

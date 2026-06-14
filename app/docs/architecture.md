@@ -106,7 +106,7 @@ The `app/` modules hold application-level controllers and session-only interacti
 
 The `integration/` modules adapt external browser services to the app. They may call browser APIs, but they should keep that work thin and delegate parsing or validation back to `core/`.
 
-The `ui/` modules work with DOM-specific behavior: locating elements, rendering autocomplete options, drawing SVG arrows, and triggering browser downloads.
+The `ui/` modules work with DOM-specific behavior: locating elements, rendering highlighted assembly text, rendering autocomplete options, drawing SVG arrows, and triggering browser downloads.
 
 The `export/` modules produce external representations. `export/index.ts` contains JSON, Markdown, and plain-text export; `export/image.ts` renders a high-resolution PNG using canvas.
 
@@ -135,7 +135,8 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Table-editing use cases | `core/useCases/tableEditing.ts` | Applies instruction text, changes cycle count, removes outgoing arrows, and prunes struck-cell arrows without DOM access. |
 | Assembly highlighting | `core/assembly.ts` | Tokenizes assembly instructions into instruction/register/plain tokens. |
 | Browser persistence | `integration/storage.ts` | Loads/saves normalized state through `localStorage`. |
-| DOM helpers | `ui/dom.ts` | Reads required DOM elements and renders highlighted instruction text. |
+| DOM helpers | `ui/dom.ts` | Reads required DOM elements and extracts dataset-backed input positions. |
+| Assembly highlight UI | `ui/assemblyHighlight.ts` | Renders tokenized assembly text and known labels into DOM spans. |
 | Autocomplete UI | `ui/autocomplete.ts` | Displays suggestions, handles active option movement, and emits accepted values. |
 | Cell class composition | `ui/cellClasses.ts` | Translates domain and session state into stable CSS class names for stage cells. |
 | Arrow drawing | `ui/arrows.ts` | Regenerates SVG paths and arrowheads from stored arrow positions. |
@@ -653,6 +654,24 @@ The smoke test covers:
 - import and persistence
 
 The smoke test remains broad because many visible features interact through shared state, scrolling, focus, and browser layout.
+
+## File Size Audit
+
+`npm run audit:file-sizes` checks code, style, and test files under `src/`, `tests/`, and `scripts/`.
+
+Thresholds:
+
+- over 100 lines: review responsibility boundaries
+- over 300 lines: warn and require a split plan or clear justification
+- over 500 lines: fail, unless the file is a documented exception
+
+The current expected failures are intentional architecture backlog items:
+
+- `src/main.ts`
+- `src/styles.css`
+- `tests/browser-smoke.ts`
+
+The audit does not include Markdown reference documents because long-form documentation can be valid when it remains well sectioned and easy to scan.
 
 ## Architectural Boundaries
 

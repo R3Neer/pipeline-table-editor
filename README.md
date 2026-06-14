@@ -70,7 +70,7 @@ The output is written to `dist/`.
 - `codex/`: auxiliary notes for Codex work.
 - `README.md` and `LICENSE`: public project documentation.
 
-See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams, class diagrams, and sequence diagrams. The ongoing large-refactor plan, multi-agent ownership model, and commit policy live in [`app/docs/refactor-plan.md`](./app/docs/refactor-plan.md).
+See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams, class diagrams, and sequence diagrams. The ongoing large-refactor plan, multi-agent ownership model, file-size policy, and commit policy live in [`app/docs/refactor-plan.md`](./app/docs/refactor-plan.md).
 
 ## Scripts
 
@@ -83,6 +83,25 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run test:integration`: integration-style unit tests for extensibility seams, storage, export services, visual class composition, and table-editing use cases.
 - `npm run test:all`: unit, integration, and browser smoke tests.
 - `npm run test:smoke`: browser smoke test.
+
+`npm run audit:file-sizes` is currently expected to fail because the active refactor intentionally tracks three known oversized files: `app/src/main.ts`, `app/src/styles.css`, and `app/tests/browser-smoke.ts`. Treat that failure as the architecture backlog, not as a runtime regression.
+
+## Architecture And Refactor Policy
+
+The project is framework-free and keeps a strict split between:
+
+- `core/`: DOM-free domain model, validation, autocomplete, rows, arrows, expansion, and state rules.
+- `core/useCases/`: deterministic state-changing workflows.
+- `app/`: application controllers and transient session state.
+- `integration/`: thin browser adapters such as `localStorage`.
+- `ui/`: DOM helpers and presentation mechanics.
+- `export/`: JSON, Markdown, plain text, and PNG output.
+
+The current refactor direction is to keep `app/src/main.ts` as the composition root while moving cohesive workflows into small controllers and helpers. The documented size policy is:
+
+- Review files over 100 lines for responsibility boundaries.
+- Plan or justify files over 300 lines.
+- Treat code/style/test files over 500 lines as priority architecture debt.
 
 ## Cell Format
 
