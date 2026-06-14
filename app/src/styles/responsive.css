@@ -1,0 +1,14 @@
+@media (max-width: 900px) {
+  body {
+    min-width: 0;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .controls {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+}

@@ -43,6 +43,12 @@ app/src/
 │  └─ tableWorkflowController.ts
 ├─ main.ts
 ├─ styles.css
+├─ styles/
+│  ├─ base.css
+│  ├─ overlays.css
+│  ├─ responsive.css
+│  ├─ sidebar.css
+│  └─ table.css
 ├─ core/
 │  ├─ assembly.ts
 │  ├─ arrows.ts
@@ -681,9 +687,7 @@ Thresholds:
 - over 300 lines: warn and require a split plan or clear justification
 - over 500 lines: fail, unless the file is a documented exception
 
-The current expected failure is an intentional architecture backlog item:
-
-- `src/styles.css`
+The audit is expected to pass. Remaining `>300` warnings are treated as refactor planning signals rather than release blockers.
 
 The audit does not include Markdown reference documents because long-form documentation can be valid when it remains well sectioned and easy to scan.
 

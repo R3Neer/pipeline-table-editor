@@ -18,7 +18,6 @@ Allowed code exceptions must explain why the file is large and what would make i
 
 | File | Current concern | Direction |
 | --- | --- | --- |
-| `app/src/styles.css` | Global stylesheet mixes table, layout, menus, modals, export panel, and visual states. | Split by visual domain while preserving selectors and UX. |
 | `app/src/core/autocomplete.ts` | Autocomplete mixes providers, ranking, stage progression, history, and numbering rules. | Introduce small providers and ranking functions. |
 | `app/src/export/image.ts` | PNG export mixes metrics, rendering, theme, text drawing, cells, and arrows. | Split into layout, drawing, theme, and orchestration modules. |
 | `app/src/core/validation.ts` | Still manageable, but new validation rules will make it grow quickly. | Prepare rule-level modules before adding more rules. |
@@ -31,14 +30,13 @@ Recently resolved hotspot:
 - `app/src/main.ts` no longer owns instruction-row add/remove/move/edit actions or row clipboard state; those live in `app/src/app/rowEditingController.ts`.
 - `app/src/main.ts` no longer owns stage-cell handlers, keyboard navigation, autocomplete acceptance, simple cell actions, or cell clipboard state; those live in `app/src/app/cellEditingController.ts`.
 - `app/src/main.ts` no longer owns bulk table workflows, global event binding, textarea resize binding, or small table DOM helpers. Those live in `app/src/app/tableWorkflowController.ts`, `app/src/app/appEventBindings.ts`, `app/src/ui/instructionColumnWidth.ts`, and `app/src/ui/tableElements.ts`.
+- `app/src/styles.css` has been split into visual-domain stylesheets under `app/src/styles/`, with the original file kept as the import entrypoint.
 
 ## Current Audit Status
 
 `npm run audit:file-sizes` is currently expected to fail. That failure is deliberate: it keeps the largest remaining architecture debt visible while the refactor is underway.
 
-Known `>500` files:
-
-- `app/src/styles.css`
+Known `>500` files: none.
 
 ## Refactor Phases
 
@@ -51,13 +49,13 @@ Known `>500` files:
    - `labelModalController`
    - `tableRenderer` or `tableView`
    - `eventWiring` or `appBootstrap`
-4. Split `styles.css` into visual domains without changing visible behavior.
+4. Done: split `styles.css` into visual domains without changing visible behavior.
 5. Split autocomplete into provider/ranking modules.
 6. Split PNG export into layout/render/theme/orchestration modules.
 7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to split `app/src/styles.css` by visual domain while preserving selectors and visible behavior.
+The recommended next phase is to review the remaining `>300` warnings, starting with `app/src/core/autocomplete.ts`, `app/src/export/image.ts`, `app/src/app/cellEditingController.ts`, and `app/src/styles/table.css`.
 
 ## Multi-Agent Team
 

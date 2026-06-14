@@ -1,0 +1,140 @@
+.context-menu,
+.autocomplete-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 160px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.context-menu[aria-hidden="true"],
+.autocomplete-menu[aria-hidden="true"],
+.modal-backdrop[aria-hidden="true"] {
+  display: none;
+}
+
+.context-menu button[hidden] {
+  display: none;
+}
+
+.context-menu button,
+.autocomplete-option {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 10px;
+  text-align: left;
+  background: transparent;
+}
+
+.context-submenu {
+  position: relative;
+}
+
+.context-submenu::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 100%;
+  display: none;
+  width: 8px;
+  height: calc(100% + 12px);
+}
+
+.context-submenu.submenu-opens-left::after {
+  right: 100%;
+  left: auto;
+}
+
+.context-submenu-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: none;
+  min-width: 150px;
+  max-height: calc(100vh - 16px);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.context-submenu:hover .context-submenu-menu,
+.context-submenu:focus-within .context-submenu-menu,
+.context-submenu:hover::after,
+.context-submenu:focus-within::after {
+  display: block;
+}
+
+.context-menu button:hover,
+.autocomplete-option:hover,
+.autocomplete-option.active {
+  background: var(--accent-soft);
+}
+
+.modal-header,
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.modal h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--modal-backdrop);
+}
+
+.modal {
+  width: min(900px, 94vw);
+  border-radius: 14px;
+  padding: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.compact-modal {
+  width: min(380px, 92vw);
+}
+
+.warning-modal {
+  border: 1px solid var(--delete-hover-border);
+}
+
+.warning-modal .modal-header {
+  align-items: flex-start;
+}
+
+.warning-modal h2 {
+  color: var(--danger);
+}
+
+.modal-message {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.modal textarea {
+  margin: 12px 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+}
+

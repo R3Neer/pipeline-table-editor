@@ -1,0 +1,418 @@
+.table-shell {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--instruction-col-width) minmax(0, 1fr);
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  height: 100%;
+  padding-bottom: var(--table-bottom-scroll-reserve, 0px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--table-shadow);
+}
+
+.table-shell.has-vertical-overflow {
+  overflow-y: auto;
+}
+
+.instruction-pane {
+  position: relative;
+  z-index: 6;
+  align-self: start;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.cycle-viewport {
+  position: relative;
+  align-self: start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  background: var(--surface);
+}
+
+.cycle-canvas {
+  position: relative;
+  width: max-content;
+  min-width: 100%;
+}
+
+.pipeline-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: max-content;
+  table-layout: fixed;
+}
+
+.instruction-table {
+  width: var(--instruction-col-width);
+}
+
+.cycle-table {
+  min-width: 100%;
+}
+
+.instruction-scrollbar-spacer {
+  display: none;
+  height: var(--cycle-horizontal-scrollbar-reserve);
+  background: var(--scrollbar-track);
+}
+
+.table-shell.has-horizontal-overflow .instruction-scrollbar-spacer {
+  display: block;
+}
+
+.add-row-zone {
+  position: sticky;
+  left: 0;
+  display: flex;
+  align-items: center;
+  width: var(--instruction-col-width);
+  height: var(--table-row-height);
+  padding-left: calc(var(--instruction-col-width) / 2 - 22px);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.add-row-zone:hover,
+.add-row-zone:focus-within {
+  opacity: 1;
+}
+
+.add-row-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 999px;
+  padding: 0;
+  background: var(--accent);
+  color: white;
+  font-size: 22px;
+  line-height: 1;
+  box-shadow: 0 10px 20px rgba(0, 108, 122, 0.22);
+}
+
+.pipeline-table th,
+.pipeline-table td {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+  background: var(--surface);
+}
+
+.pipeline-table th {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  height: var(--table-header-height);
+  max-height: var(--table-header-height);
+  background: var(--table-header-bg);
+  color: var(--table-header-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pipeline-table thead tr {
+  height: var(--table-header-height);
+}
+
+.pipeline-table tbody tr {
+  height: var(--table-row-height);
+}
+
+.pipeline-table tbody td {
+  height: var(--table-row-height);
+  max-height: var(--table-row-height);
+  overflow: hidden;
+}
+
+.pipeline-table tbody tr.row-separator td {
+  border-top: 3px solid var(--border-strong);
+}
+
+.instruction-col {
+  z-index: 2;
+  width: var(--instruction-col-width);
+  min-width: var(--instruction-col-width);
+  background: var(--surface);
+}
+
+th.instruction-col {
+  z-index: 9;
+  background: var(--table-header-bg);
+}
+
+.cycle-col {
+  width: var(--cycle-col-width);
+  min-width: var(--cycle-col-width);
+}
+
+.instruction-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px 34px 34px;
+  column-gap: 7px;
+  align-items: center;
+  height: var(--table-row-height);
+  padding: 5px 10px 5px 5px;
+  background: var(--surface);
+}
+
+.instruction-cell.row-selected {
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.instruction-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.row-label {
+  flex: 0 0 auto;
+  max-width: 82px;
+  overflow: hidden;
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assembly-editor {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.instruction-cell .assembly-editor {
+  margin-right: 12px;
+}
+
+.assembly-highlight,
+.instruction-cell input {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 7px;
+  line-height: normal;
+  white-space: pre;
+}
+
+.assembly-highlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--assembly-plain);
+}
+
+.assembly-input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
+}
+
+.instruction-cell input:hover,
+.instruction-cell input:focus {
+  border-color: var(--border);
+  background: transparent;
+}
+
+.assembly-editor:has(.assembly-input:hover),
+.assembly-editor:has(.assembly-input:focus) {
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+
+.asm-token-instruction {
+  color: var(--assembly-instruction);
+}
+
+.asm-token-register {
+  color: var(--assembly-register);
+}
+
+.asm-token-label {
+  font-style: italic;
+  font-weight: inherit;
+}
+
+.asm-token-annotation {
+  color: var(--assembly-plain);
+  font-style: italic;
+  font-weight: 800;
+}
+
+.assembly-input-annotation {
+  font-style: italic;
+  font-weight: 800;
+}
+
+.row-btn {
+  min-height: 28px;
+  width: 34px;
+  padding: 0;
+  border-radius: 7px;
+  color: var(--muted);
+}
+
+.row-delete-button {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.row-delete-button:hover {
+  border-color: var(--delete-hover-border);
+  background: var(--delete-hover-bg);
+}
+
+.stage-input {
+  --stage-bg: var(--stage-empty-bg);
+  --stage-border: transparent;
+  display: block;
+  width: calc(100% - 10px);
+  height: var(--stage-cell-height);
+  margin: calc((var(--table-row-height) - var(--stage-cell-height) - 2px) / 2) 5px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 5px 6px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--stage-text);
+  background: var(--stage-empty-bg);
+  box-shadow: var(--cell-shadow);
+  outline: none;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.stage-input:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+}
+
+.stage-input:focus,
+.stage-input.selected {
+  border-color: var(--selected);
+  box-shadow: 0 0 0 3px var(--selected-ring);
+}
+
+.stage-input.multi-selected {
+  border-color: var(--multi-selected);
+  box-shadow: 0 0 0 3px var(--multi-selected-ring);
+}
+
+.stage-input.arrow-from {
+  border-color: var(--from);
+  box-shadow: 0 0 0 3px var(--from-ring);
+}
+
+.stage-input.expand-from {
+  border-color: var(--expand);
+  box-shadow: 0 0 0 3px var(--expand-ring);
+}
+
+.stage-input.arrow-to {
+  border-color: var(--to);
+  box-shadow: 0 0 0 3px var(--to-ring);
+}
+
+.stage-if {
+  --stage-bg: var(--if-bg);
+  --stage-border: var(--if-border);
+  background: var(--stage-bg);
+  border-color: var(--stage-border);
+}
+
+.stage-id {
+  --stage-bg: var(--id-bg);
+  --stage-border: var(--id-border);
+  background: var(--stage-bg);
+  border-color: var(--stage-border);
+}
+
+.stage-ex {
+  --stage-bg: var(--ex-bg);
+  --stage-border: var(--ex-border);
+  background: var(--stage-bg);
+  border-color: var(--stage-border);
+}
+
+.stage-mem {
+  --stage-bg: var(--mem-bg);
+  --stage-border: var(--mem-border);
+  background: var(--stage-bg);
+  border-color: var(--stage-border);
+}
+
+.stage-wb {
+  --stage-bg: var(--wb-bg);
+  --stage-border: var(--wb-border);
+  background: var(--stage-bg);
+  border-color: var(--stage-border);
+}
+
+.stage-p {
+  background: color-mix(in srgb, var(--stage-bg) 28%, var(--p-mix));
+  border-color: color-mix(in srgb, var(--stage-border) 26%, var(--p-border-mix));
+  color: var(--p-text);
+}
+
+.stage-invalid {
+  --stage-bg: var(--invalid-bg);
+  --stage-border: var(--invalid-border);
+  background: var(--invalid-bg);
+  border-color: var(--invalid-border);
+  color: var(--invalid-text);
+}
+
+.stage-struck {
+  background: var(--struck-bg);
+  border-color: var(--struck-border);
+  text-decoration: line-through;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 3px;
+  color: var(--struck-text);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    var(--cell-shadow);
+}
+
+.stage-input.arrow-target-valid {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px var(--accent-ring),
+    inset 0 0 0 2px var(--accent);
+}
+
+.arrow-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+.arrow-path {
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.arrow-path:hover {
+  stroke-width: 4;
+}
+
