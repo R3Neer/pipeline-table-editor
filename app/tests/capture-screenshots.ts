@@ -38,14 +38,15 @@ try {
 
   await page.click("#exportMenuBtn");
   await page.screenshot({ path: screenshotPath("export-menu.png"), fullPage: true });
-  await page.keyboard.press("Escape");
+  await page.click("#exportMenuBtn");
 
   await cell(page, 0, 2).click({ button: "right" });
   await page.locator(".context-submenu-trigger").hover();
   await page.screenshot({ path: screenshotPath("context-menu.png"), fullPage: true });
   await page.keyboard.press("Escape");
 
-  await cell(page, 2, 3).click();
+  await cell(page, 2, 1).click();
+  await page.locator("#autocompleteMenu").waitFor({ state: "visible" });
   await page.screenshot({ path: screenshotPath("validation-and-autocomplete.png"), fullPage: true });
 
   console.log("Screenshots written to app/docs/screenshots");
