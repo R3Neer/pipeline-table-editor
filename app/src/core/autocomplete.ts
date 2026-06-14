@@ -1,12 +1,23 @@
 import type { AppState, CellPosition, StageRoot } from "./model";
 import { stageRoots } from "./model";
-import { formatPendingStageText, formatStageText, parseStageText } from "./stage";
-import { getStageOrder, requiresPendingFromAbove } from "./validation";
+import { formatPendingStageText, formatStageText, normalizeCellText, parseStageText } from "./stage";
+import { getStageOrder, isCellTextValid, requiresPendingFromAbove } from "./validation";
 
 interface SuggestionCandidate {
   value: string;
   priority: number;
   order: number;
+  exactValidInput: boolean;
+}
+
+interface AutocompleteContext {
+  state: AppState;
+  pos: CellPosition;
+  normalizedInput: string;
+  input: string;
+  mustPlacePending: boolean;
+  canPlacePending: boolean;
+  previousStage: ReturnType<typeof parseStageText>;
 }
 
 interface RootPreference {
@@ -23,67 +34,123 @@ interface LocalRootNumbering {
 const maxSuggestions = 8;
 
 export function getAutocompleteSuggestions(state: AppState, pos: CellPosition, raw: string): string[] {
-  const input = raw.trim().toUpperCase();
-  const candidates: SuggestionCandidate[] = [];
-  let order = 0;
-  const mustPlacePending = requiresPendingFromAbove(state, pos);
-  const add = (value: string, priority: number) => {
-    if (mustPlacePending && !value.endsWith("p")) return;
-    if (matchesInput(value, input)) {
-      candidates.push({ value, priority, order });
-      order += 1;
-    }
+  const normalizedInput = normalizeCellText(raw).trim();
+  const context: AutocompleteContext = {
+    state,
+    pos,
+    normalizedInput,
+    input: normalizedInput.toUpperCase(),
+    mustPlacePending: requiresPendingFromAbove(state, pos),
+    canPlacePending: pos.cycle < state.cycles - 1,
+    previousStage: parseStageText(pos.cycle > 0 ? state.rows[pos.row].cells[pos.cycle - 1].text.trim() : "")
   };
+  const collector = createSuggestionCollector(context);
 
-  const previous = pos.cycle > 0 ? state.rows[pos.row].cells[pos.cycle - 1].text.trim() : "";
-  const previousStage = parseStageText(previous);
-  const canPlacePending = pos.cycle < state.cycles - 1;
-  const addRootCandidates = (root: StageRoot, priority: number) => {
-    const localContext = getLocalRootNumbering(state, pos, root);
-    const preference = getRootPreference(state, root);
-    const preferNumbered = localContext.usesNumbered || shouldPreferNumbered(root, preference);
-    const preferredNumber = localContext.expectedNumber || preference.preferredNumber;
+  addExactInputCandidate(context, collector.add);
 
-    if (preferNumbered) {
-      add(formatStageText(root, preferredNumber), priority);
-      if (canPlacePending) add(formatPendingStageText(root, preferredNumber), priority + 1);
-      if (localContext.usesNumbered && preference.preferredNumber !== preferredNumber && !mustPlacePending) {
-        add(formatStageText(root, preference.preferredNumber), priority + 2);
-      }
-      if (!localContext.usesNumbered) add(root, priority + 3);
-      return;
-    }
-
-    add(root, priority);
-    add(formatStageText(root, preferredNumber), priority + 3);
-    if (canPlacePending) add(formatPendingStageText(root, null), priority + 4);
-  };
-
-  if (previousStage?.pending) {
-    if (mustPlacePending) {
-      add(formatPendingStageText(previousStage.root, previousStage.number), 0);
-    } else {
-      add(formatStageText(previousStage.root, previousStage.number), 0);
-      if (canPlacePending) add(formatPendingStageText(previousStage.root, previousStage.number), 1);
-    }
-    return orderSuggestions(candidates, input).slice(0, maxSuggestions);
+  if (context.previousStage?.pending) {
+    addPendingContinuationCandidates(context, collector.add);
+    return orderSuggestions(collector.candidates, context.input).slice(0, maxSuggestions);
   }
 
-  if (previousStage?.number && !previousStage.pending) {
-    add(formatStageText(previousStage.root, previousStage.number + 1), 0);
-    if (canPlacePending) add(formatPendingStageText(previousStage.root, previousStage.number + 1), 1);
-  }
+  addHistoricalNextCandidates(context, collector.add);
+  addNumberedContinuationCandidates(context, collector.add);
 
   const nextRoot = getNextStageRoot(state, pos);
   if (nextRoot) {
-    addRootCandidates(nextRoot, 2);
+    addRootCandidates(context, nextRoot, 2, collector.add);
   }
 
   getAllowedRoots(state, pos).forEach((root) => {
-    addRootCandidates(root, 10);
+    addRootCandidates(context, root, 10, collector.add);
   });
 
-  return orderSuggestions(candidates, input).slice(0, maxSuggestions);
+  return orderSuggestions(collector.candidates, context.input).slice(0, maxSuggestions);
+}
+
+function createSuggestionCollector(context: AutocompleteContext): {
+  candidates: SuggestionCandidate[];
+  add: (value: string, priority: number) => void;
+} {
+  const candidates: SuggestionCandidate[] = [];
+  let order = 0;
+  return {
+    candidates,
+    add(value: string, priority: number) {
+      if (context.mustPlacePending && !value.endsWith("p")) return;
+      if (!matchesInput(value, context.input)) return;
+      candidates.push({
+        value,
+        priority,
+        order,
+        exactValidInput: isExactValidInput(value, context.normalizedInput, context.state, context.pos)
+      });
+      order += 1;
+    }
+  };
+}
+
+function addExactInputCandidate(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+  if (context.normalizedInput && isAutocompleteValidInput(context.normalizedInput, context.state, context.pos)) {
+    add(context.normalizedInput, -100);
+  }
+}
+
+function addPendingContinuationCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+  const previousStage = context.previousStage;
+  if (!previousStage?.pending) return;
+
+  if (context.mustPlacePending) {
+    add(formatPendingStageText(previousStage.root, previousStage.number), 0);
+    return;
+  }
+
+  add(formatStageText(previousStage.root, previousStage.number), 0);
+  if (context.canPlacePending) add(formatPendingStageText(previousStage.root, previousStage.number), 1);
+}
+
+function addHistoricalNextCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+  const nextStage = getHistoricalNextStage(context.state, context.pos);
+  if (nextStage) add(nextStage, -1);
+}
+
+function addNumberedContinuationCandidates(context: AutocompleteContext, add: (value: string, priority: number) => void): void {
+  const previousStage = context.previousStage;
+  if (!previousStage?.number || previousStage.pending) return;
+
+  add(formatStageText(previousStage.root, previousStage.number + 1), 0);
+  if (context.canPlacePending) add(formatPendingStageText(previousStage.root, previousStage.number + 1), 1);
+}
+
+function addRootCandidates(
+  context: AutocompleteContext,
+  root: StageRoot,
+  priority: number,
+  add: (value: string, priority: number) => void
+): void {
+  const localContext = getLocalRootNumbering(context.state, context.pos, root);
+  const preference = getRootPreference(context.state, root);
+  const preferNumbered = localContext.usesNumbered || shouldPreferNumbered(root, preference);
+  const preferredNumber = localContext.expectedNumber || 1;
+
+  if (preferNumbered) {
+    add(formatStageText(root, preferredNumber), priority);
+    if (context.canPlacePending) add(formatPendingStageText(root, preferredNumber), priority + 1);
+    if (
+      localContext.usesNumbered &&
+      canRecommendPreferredNumber(context.state, context.pos, root, preference.preferredNumber) &&
+      preference.preferredNumber !== preferredNumber &&
+      !context.mustPlacePending
+    ) {
+      add(formatStageText(root, preference.preferredNumber), priority + 2);
+    }
+    if (!localContext.usesNumbered) add(root, priority + 3);
+    return;
+  }
+
+  add(root, priority);
+  add(formatStageText(root, preferredNumber), priority + 3);
+  if (context.canPlacePending) add(formatPendingStageText(root, null), priority + 4);
 }
 
 function orderSuggestions(candidates: SuggestionCandidate[], input: string): string[] {
@@ -95,12 +162,38 @@ function orderSuggestions(candidates: SuggestionCandidate[], input: string): str
 
   return [...unique.values()]
     .sort((a, b) => {
+      if (a.exactValidInput !== b.exactValidInput) return a.exactValidInput ? -1 : 1;
       const completionDiff = completionRank(a.value, input) - completionRank(b.value, input);
       if (completionDiff) return completionDiff;
       if (a.priority !== b.priority) return a.priority - b.priority;
       return a.order - b.order;
     })
     .map((candidate) => candidate.value);
+}
+
+function isExactValidInput(value: string, input: string, state: AppState, pos: CellPosition): boolean {
+  return Boolean(input && value === input && isAutocompleteValidInput(input, state, pos));
+}
+
+function isAutocompleteValidInput(value: string, state: AppState, pos: CellPosition): boolean {
+  const parsed = parseStageText(value);
+  if (!parsed || !isCellTextValidForSuggestion(value, state, pos)) return false;
+
+  const localContext = getLocalRootNumbering(state, pos, parsed.root);
+  if (localContext.usesNumbered && !parsed.number) return false;
+  if (parsed.number && parsed.number > 1 && !hasPreviousNumberInRow(state, pos, parsed.root, parsed.number)) return false;
+  return true;
+}
+
+function isCellTextValidForSuggestion(value: string, state: AppState, pos: CellPosition): boolean {
+  const row = state.rows[pos.row];
+  const cell = row?.cells[pos.cycle];
+  if (!row || !cell) return false;
+  const previousText = cell.text;
+  cell.text = value;
+  const valid = isCellTextValid(value, state, pos);
+  cell.text = previousText;
+  return valid;
 }
 
 function completionRank(value: string, input: string): number {
@@ -201,6 +294,65 @@ function getRootPreference(state: AppState, root: StageRoot): RootPreference {
 
 function shouldPreferNumbered(root: StageRoot, preference: RootPreference): boolean {
   return root !== "EX" && preference.numberedScore >= Math.max(2, preference.bareScore + 1);
+}
+
+function canRecommendPreferredNumber(state: AppState, pos: CellPosition, root: StageRoot, number: number): boolean {
+  if (number <= 1) return true;
+  return hasPreviousNumberInRow(state, pos, root, number);
+}
+
+function getHistoricalNextStage(state: AppState, pos: CellPosition): string | null {
+  const previousStage = pos.cycle > 0 ? parseStageText(state.rows[pos.row].cells[pos.cycle - 1].text.trim()) : null;
+  if (!previousStage || previousStage.pending) return null;
+
+  const counts = new Map<string, number>();
+  for (let rowIndex = 0; rowIndex < pos.row; rowIndex += 1) {
+    const row = state.rows[rowIndex];
+    for (let cycle = 0; cycle < row.cells.length - 1; cycle += 1) {
+      const parsed = parseStageText(row.cells[cycle].text.trim());
+      if (!isSameConcreteStage(parsed, previousStage)) continue;
+      const next = getNextConcreteStageText(row.cells.slice(cycle + 1).map((cell) => cell.text));
+      if (!next || !isAutocompleteValidInput(next, state, pos)) continue;
+      counts.set(next, (counts.get(next) || 0) + 1);
+    }
+  }
+
+  return getMostCommonText(counts);
+}
+
+function isSameConcreteStage(
+  left: ReturnType<typeof parseStageText>,
+  right: NonNullable<ReturnType<typeof parseStageText>>
+): boolean {
+  return Boolean(left && left.root === right.root && left.number === right.number && left.pending === right.pending);
+}
+
+function getNextConcreteStageText(texts: string[]): string | null {
+  for (const text of texts) {
+    const parsed = parseStageText(text.trim());
+    if (!parsed) continue;
+    return formatStageText(parsed.root, parsed.number);
+  }
+  return null;
+}
+
+function hasPreviousNumberInRow(state: AppState, pos: CellPosition, root: StageRoot, number: number): boolean {
+  return state.rows[pos.row].cells.slice(0, pos.cycle).some((cell) => {
+    const parsed = parseStageText(cell.text.trim());
+    return parsed?.root === root && parsed.number === number - 1 && !parsed.pending;
+  });
+}
+
+function getMostCommonText(counts: Map<string, number>): string | null {
+  let bestText: string | null = null;
+  let bestCount = 0;
+  counts.forEach((count, text) => {
+    if (count > bestCount) {
+      bestText = text;
+      bestCount = count;
+    }
+  });
+  return bestText;
 }
 
 function getMostCommonNumber(counts: Map<number, number>): number | null {

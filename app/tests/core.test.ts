@@ -57,6 +57,13 @@ assert.equal(validCellPattern.test("IDp"), true);
 }
 
 {
+  const state = makeState([["IF1p", "IF1p", "IF1"]]);
+  assertCellValidity(state, 0, 0, true);
+  assertCellValidity(state, 0, 1, true);
+  assertCellValidity(state, 0, 2, true);
+}
+
+{
   const state = makeState([
     ["IFp", "IF"],
     ["IF", ""],
@@ -89,6 +96,46 @@ assert.equal(validCellPattern.test("IDp"), true);
   const state = makeState([["IF1", "", ""]]);
   const suggestions = getAutocompleteSuggestions(state, { row: 0, cycle: 1 }, "");
   assert.equal(suggestions[0], "IF2");
+}
+
+{
+  const state = makeState([["IF", "ID", ""]]);
+  const suggestions = getAutocompleteSuggestions(state, { row: 0, cycle: 1 }, "ID");
+  assert.equal(suggestions[0], "ID");
+}
+
+{
+  const state = makeState([["IF1", "IF2", ""]]);
+  const suggestions = getAutocompleteSuggestions(state, { row: 0, cycle: 1 }, "IF2");
+  assert.equal(suggestions[0], "IF2");
+}
+
+{
+  const state = makeState([["IF1", "IF2", ""]]);
+  const suggestions = getAutocompleteSuggestions(state, { row: 0, cycle: 1 }, "IFp");
+  assert.notEqual(suggestions[0], "IFp");
+}
+
+{
+  const state = makeState([
+    ["IF", "ID", "EX", "MEM2", ""],
+    ["IF", "ID", "EX", "MEM2", ""],
+    ["IF", "ID", "EX", "", ""]
+  ]);
+  const suggestions = getAutocompleteSuggestions(state, { row: 2, cycle: 3 }, "MEM");
+  assert.equal(suggestions.includes("MEM2"), false);
+  assert.equal(suggestions[0], "MEM");
+}
+
+{
+  const state = makeState([
+    ["IF", "ID", "EX", "MEM1", "MEM2", "WB"],
+    ["IF", "ID", "EX", "MEM1", "MEM2", "WB"],
+    ["IF", "ID", "EX", "MEM1", "MEM2", ""]
+  ]);
+  const suggestions = getAutocompleteSuggestions(state, { row: 2, cycle: 5 }, "");
+  assert.equal(suggestions[0], "WB");
+  assert.ok(suggestions.indexOf("MEM3") === -1 || suggestions.indexOf("WB") < suggestions.indexOf("MEM3"));
 }
 
 {

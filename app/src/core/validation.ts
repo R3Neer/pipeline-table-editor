@@ -25,6 +25,7 @@ export function isCellTextValid(value: string, state: AppState, pos: CellPositio
   if (!resolvesPendingChain(state, pos)) return false;
 
   if (!pendingStage.number) return true;
+  if (pendingStage.number === 1) return true;
   const previous = pos.cycle > 0 ? state.rows[pos.row].cells[pos.cycle - 1].text.trim() : "";
   if (previous === formatPendingStageText(pendingStage.root, pendingStage.number)) return true;
 

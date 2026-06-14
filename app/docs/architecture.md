@@ -252,7 +252,9 @@ Autocomplete is split in two layers:
 - `core/autocomplete.ts` is a pure suggestion engine. It receives `AppState`, a `CellPosition`, and the raw input text, then returns ordered string suggestions.
 - `ui/autocomplete.ts` is the DOM controller. It positions the menu, renders buttons, moves the active option, and dispatches accepted values.
 
-The core engine deliberately shares validation helpers such as `requiresPendingFromAbove`. That keeps the menu from suggesting stages that the validator already knows cannot be valid, especially around vertical pending-stage propagation and numbered pending stages.
+The core engine builds suggestions through small candidate rules: exact valid input, pending continuation, historical next stage, numbered continuation, next stage root, and allowed local roots. The rules share validation helpers such as `requiresPendingFromAbove` and contextual number checks. That keeps the menu from suggesting stages that the validator already knows cannot be valid, especially around vertical pending-stage propagation and numbered pending stages.
+
+The historical rule looks only at previous rows. If earlier rows consistently show a transition such as `MEM1 -> MEM2 -> WB`, then `WB` is ranked before speculative continuations such as `MEM3` after the current row reaches `MEM2`.
 
 ## Autocomplete Sequence
 
