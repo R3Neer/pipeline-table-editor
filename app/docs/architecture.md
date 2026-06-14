@@ -30,6 +30,7 @@ app/src/
 ├─ app/
 │  ├─ appContext.ts
 │  ├─ arrowAndExpansionController.ts
+│  ├─ cellEditingController.ts
 │  ├─ contextMenuController.ts
 │  ├─ exportImportController.ts
 │  ├─ labelModalController.ts
@@ -99,7 +100,7 @@ flowchart TD
   Export --> Core
 ```
 
-The application coordinator owns the mutable app state and wires browser events to application controllers. It still performs table rendering directly, but cohesive workflows such as selection, context-menu handling, row editing, modal handling, row-label editing, persistence, import/export, and arrow/expansion drafts live in `app/` modules.
+The application coordinator owns the mutable app state and wires browser events to application controllers. It still performs table rendering directly, but cohesive workflows such as selection, context-menu handling, cell editing, row editing, modal handling, row-label editing, persistence, import/export, and arrow/expansion drafts live in `app/` modules.
 
 The `core/` modules avoid direct DOM and browser-storage access. They hold the serializable data model, stage parsing, validation rules, selection utilities, expansion rules, assembly tokenization, and persisted-state normalization.
 
@@ -120,6 +121,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Application composition | `main.ts` | Owns `AppState`, renders the table, wires browser events, and delegates cohesive workflows to application controllers. |
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
 | Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
+| Cell editing controller | `app/cellEditingController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
 | Context menu controller | `app/contextMenuController.ts` | Owns cell/row context-menu state, menu visibility, action availability, submenu positioning, and action dispatch through callbacks. |
 | Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |
 | Label modal controller | `app/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |
@@ -611,7 +613,7 @@ The app does not use a virtual DOM or framework state store. Rendering is explic
 5. The SVG arrow layer is redrawn after table updates, scrolling, and resizing.
 6. A debounced save passes the serializable state to the storage integration adapter.
 
-Selection state, context-menu state, row-editing workflow state, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
+Selection state, context-menu state, cell clipboard state, row-editing workflow state, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
 
 This direct rendering style is simple enough for the size of the project and keeps deployment as a static site.
 

@@ -4,6 +4,7 @@ import { samePos } from "./core/arrows";
 import { getKnownLabels, getLabelColor } from "./core/labels";
 import type { AppState, CellPosition } from "./core/model";
 import { createArrowAndExpansionController } from "./app/arrowAndExpansionController";
+import { createCellEditingController } from "./app/cellEditingController";
 import { createContextMenuController } from "./app/contextMenuController";
 import { createExportImportController } from "./app/exportImportController";
 import { createLabelModalController } from "./app/labelModalController";
@@ -11,7 +12,6 @@ import { createModalController } from "./app/modalController";
 import { createPersistenceController } from "./app/persistenceController";
 import { createRowEditingController } from "./app/rowEditingController";
 import { createSelectionController } from "./app/selectionController";
-import type { CopiedCell } from "./app/sessionTypes";
 import { createDefaultState } from "./core/state";
 import {
   applyInstructionText,
@@ -34,7 +34,6 @@ const selection = createSelectionController();
 const splitTable = createSplitTableController(elements, () => drawArrows());
 
 let state: AppState = loadStateFromStorage() || createDefaultState();
-let copiedCell: CopiedCell | null = null;
 
 const { showConfirm, showNotice, closeConfirmModal } = createModalController(elements);
 const { scheduleSave, saveState } = createPersistenceController({
@@ -86,6 +85,16 @@ const rowEditing = createRowEditingController({
   scheduleSave,
   showConfirm
 });
+const cellEditing = createCellEditingController({
+  selection,
+  getState: () => state,
+  getCellElement,
+  hideAutocomplete: autocomplete.hide,
+  refreshCellClasses,
+  scheduleSave,
+  drawArrows,
+  removeOutgoingArrows
+});
 const contextMenu = createContextMenuController({
   elements,
   selection,
@@ -95,12 +104,12 @@ const contextMenu = createContextMenuController({
   actions: {
     startArrow,
     removeArrowsFrom,
-    toggleStrike,
+    toggleStrike: cellEditing.toggleStrike,
     startExpand,
-    copyCell,
-    cutCell,
-    pasteCell,
-    clearCell,
+    copyCell: cellEditing.copyCell,
+    cutCell: cellEditing.cutCell,
+    pasteCell: cellEditing.pasteCell,
+    clearCell: cellEditing.clearCell,
     editRowLabel: labelModal.open,
     removeRowLabel: rowEditing.removeRowLabel,
     toggleRowSeparator: rowEditing.toggleRowSeparator,
@@ -435,12 +444,12 @@ function onCellKeyDown(event: KeyboardEvent): void {
   }
   if (event.key === "Delete") {
     event.preventDefault();
-    clearCell(pos);
+    cellEditing.clearCell(pos);
     return;
   }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
     event.preventDefault();
-    toggleStrike(pos);
+    cellEditing.toggleStrike(pos);
     return;
   }
   if (event.key === "Escape") {
@@ -513,69 +522,12 @@ function refreshRowSelectionClasses(): void {
   });
 }
 
-function getActionTargets(fallback: CellPosition): CellPosition[] {
-  return selection.getCellActionTargets(fallback, state);
-}
-
 function getSelectedPositions(): CellPosition[] {
   return selection.getSelectedPositions(state);
 }
 
 function isMultiSelection(): boolean {
   return selection.isMultiSelection();
-}
-
-function toggleStrike(pos = selection.getSelectedCell()): void {
-  if (!pos) return;
-  const cell = state.rows[pos.row].cells[pos.cycle];
-  cell.struck = !cell.struck;
-  if (cell.struck) removeOutgoingArrows(pos);
-  refreshCellClasses();
-  scheduleSave();
-  window.requestAnimationFrame(drawArrows);
-}
-
-function clearCell(pos = selection.getSelectedCell()): void {
-  if (!pos) return;
-  getActionTargets(pos).forEach((target) => {
-    const cell = state.rows[target.row].cells[target.cycle];
-    cell.text = "";
-    cell.struck = false;
-    const input = getCellElement(target);
-    if (input) input.value = "";
-  });
-  autocomplete.hide();
-  refreshCellClasses();
-  scheduleSave();
-  window.requestAnimationFrame(drawArrows);
-}
-
-function copyCell(pos = selection.getSelectedCell()): void {
-  if (!pos || isMultiSelection()) return;
-  const cell = state.rows[pos.row].cells[pos.cycle];
-  copiedCell = { text: cell.text, struck: cell.struck };
-}
-
-function cutCell(pos = selection.getSelectedCell()): void {
-  if (!pos || isMultiSelection()) return;
-  copyCell(pos);
-  clearCell(pos);
-}
-
-function pasteCell(pos = selection.getSelectedCell()): void {
-  if (!pos || !copiedCell) return;
-  const sourceCell = copiedCell;
-  getActionTargets(pos).forEach((target) => {
-    const cell = state.rows[target.row].cells[target.cycle];
-    cell.text = sourceCell.text;
-    cell.struck = sourceCell.struck;
-    if (cell.struck) removeOutgoingArrows(target);
-    const input = getCellElement(target);
-    if (input) input.value = cell.text;
-  });
-  refreshCellClasses();
-  scheduleSave();
-  window.requestAnimationFrame(drawArrows);
 }
 
 function applyInstructions(): void {
