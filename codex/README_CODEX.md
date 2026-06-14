@@ -12,3 +12,7 @@ npm install
 npm run build
 npm run test:smoke
 ```
+
+Workflow rule:
+
+- After each user request that Codex resolves with project changes, create an appropriate git commit before finishing the response.
