@@ -1,10 +1,12 @@
 import "./styles.css";
 
 import { samePos } from "./core/arrows";
-import { getKnownLabels, getLabelColor, normalizeRowLabel } from "./core/labels";
+import { getKnownLabels, getLabelColor } from "./core/labels";
 import type { AppState, CellPosition } from "./core/model";
 import { createArrowAndExpansionController } from "./app/arrowAndExpansionController";
+import { createContextMenuController } from "./app/contextMenuController";
 import { createExportImportController } from "./app/exportImportController";
+import { createLabelModalController } from "./app/labelModalController";
 import { createModalController } from "./app/modalController";
 import { createPersistenceController } from "./app/persistenceController";
 import { createSelectionController } from "./app/selectionController";
@@ -28,8 +30,6 @@ import { createAutocompleteController } from "./ui/autocomplete";
 import { renderAssemblyHighlight } from "./ui/assemblyHighlight";
 import { getCellClassName } from "./ui/cellClasses";
 import { getAppElements, getInputPosition } from "./ui/dom";
-import type { ContextAction, RowContextAction } from "./ui/menuActions";
-import { placeFloatingElement, placeSubmenu } from "./ui/positioning";
 import { createSplitTableController } from "./ui/splitTable";
 
 const elements = getAppElements();
@@ -38,9 +38,6 @@ const selection = createSelectionController();
 const splitTable = createSplitTableController(elements, () => drawArrows());
 
 let state: AppState = loadStateFromStorage() || createDefaultState();
-let contextCell: CellPosition | null = null;
-let contextRow: number | null = null;
-let labelEditRow: number | null = null;
 let copiedCell: CopiedCell | null = null;
 let copiedInstruction: string | null = null;
 
@@ -49,6 +46,12 @@ const { scheduleSave, saveState } = createPersistenceController({
   elements,
   getState: () => state,
   showStatus
+});
+const labelModal = createLabelModalController({
+  elements,
+  getState: () => state,
+  render,
+  scheduleSave
 });
 const exportImport = createExportImportController(
   {
@@ -80,6 +83,30 @@ const arrowsAndExpansion = createArrowAndExpansionController(
     renderSelectionInfo
   }
 );
+const contextMenu = createContextMenuController({
+  elements,
+  selection,
+  getState: () => state,
+  isMultiSelection,
+  canStartExpand,
+  actions: {
+    startArrow,
+    removeArrowsFrom,
+    toggleStrike,
+    startExpand,
+    copyCell,
+    cutCell,
+    pasteCell,
+    clearCell,
+    editRowLabel: labelModal.open,
+    removeRowLabel,
+    toggleRowSeparator,
+    copyInstruction,
+    cutInstruction,
+    pasteInstruction,
+    clearInstruction
+  }
+});
 
 const minInstructionColumnWidth = 320;
 const maxInstructionColumnWidth = 520;
@@ -318,7 +345,7 @@ function onCellFocus(event: FocusEvent): void {
   const selectedCell = getInputPosition(input);
   selection.setSelectedCell(selectedCell);
   if (!selection.hasSelectionAnchor()) setSingleSelection(selectedCell);
-  hideContextMenu();
+  contextMenu.hideCellMenu();
   refreshCellClasses();
   renderSelectionInfo();
   autocomplete.show(input, selectedCell, state);
@@ -329,7 +356,7 @@ function onCellClick(event: MouseEvent): void {
   clearRowSelection();
   const selectedCell = getInputPosition(input);
   selection.setSelectedCell(selectedCell);
-  hideContextMenu();
+  contextMenu.hideCellMenu();
   const expandFrom = arrowsAndExpansion.getExpandFrom();
   if (expandFrom && !samePos(expandFrom, selectedCell)) {
     void arrowsAndExpansion.tryExpandTo(selectedCell);
@@ -360,12 +387,12 @@ function onCellContextMenu(event: MouseEvent): void {
   event.preventDefault();
   const input = event.currentTarget as HTMLInputElement;
   clearRowSelection();
-  contextCell = getInputPosition(input);
+  const contextCell = getInputPosition(input);
   selection.setSelectedCell(contextCell);
   if (!selection.hasSelectedCell(contextCell)) setSingleSelection(contextCell);
   refreshCellClasses();
   autocomplete.hide();
-  showContextMenu(event.clientX, event.clientY);
+  contextMenu.openCellMenu(contextCell, event.clientX, event.clientY);
 }
 
 function onCellKeyDown(event: KeyboardEvent): void {
@@ -628,97 +655,6 @@ async function changeCycles(): Promise<void> {
   scheduleSave();
 }
 
-function showContextMenu(x: number, y: number): void {
-  const currentCell = contextCell ? state.rows[contextCell.row].cells[contextCell.cycle] : null;
-  const hasMultipleCells = isMultiSelection();
-  const arrowButton = elements.cellMenu.querySelector<HTMLButtonElement>('[data-action="arrow"]');
-  if (arrowButton) {
-    arrowButton.hidden = hasMultipleCells || Boolean(currentCell?.struck);
-  }
-  const expandButton = elements.cellMenu.querySelector<HTMLButtonElement>('[data-action="expand"]');
-  if (expandButton) {
-    expandButton.hidden = hasMultipleCells || !contextCell || !canStartExpand(contextCell);
-  }
-  const removeButton = elements.cellMenu.querySelector<HTMLButtonElement>('[data-action="remove-arrows"]');
-  if (removeButton) {
-    const hasOutgoing = contextCell && state.arrows.some((arrow) => samePos(arrow.from, contextCell));
-    removeButton.hidden = Boolean(currentCell?.struck) || !hasOutgoing;
-  }
-  const strikeButton = elements.cellMenu.querySelector<HTMLButtonElement>('[data-action="strike"]');
-  if (strikeButton && currentCell) {
-    strikeButton.textContent = currentCell.struck ? "Remove strike" : "Strike";
-  }
-  const copyButton = elements.cellMenu.querySelector<HTMLButtonElement>('[data-action="copy"]');
-  if (copyButton) copyButton.hidden = hasMultipleCells;
-  const cutButton = elements.cellMenu.querySelector<HTMLButtonElement>('[data-action="cut"]');
-  if (cutButton) cutButton.hidden = hasMultipleCells;
-  elements.cellMenu.setAttribute("aria-hidden", "false");
-  placeFloatingElement(elements.cellMenu, x, y);
-}
-
-function hideContextMenu(): void {
-  elements.cellMenu.setAttribute("aria-hidden", "true");
-}
-
-function positionContextSubmenu(submenu: HTMLElement): void {
-  const panel = submenu.querySelector<HTMLElement>(".context-submenu-menu");
-  if (!panel) return;
-  const side = placeSubmenu(submenu, panel);
-  submenu.classList.toggle("submenu-opens-left", side === "left");
-}
-
-function showRowContextMenu(x: number, y: number): void {
-  const row = contextRow !== null ? state.rows[contextRow] : null;
-  const hasMultipleRows = contextRow !== null && selection.getSelectedRows().size > 1 && selection.hasSelectedRow(contextRow);
-  const editLabelButton = elements.rowMenu.querySelector<HTMLButtonElement>('[data-row-action="edit-label"]');
-  if (editLabelButton) {
-    editLabelButton.textContent = row?.label ? "Edit label" : "Add label";
-    editLabelButton.hidden = hasMultipleRows;
-  }
-  const removeLabelButton = elements.rowMenu.querySelector<HTMLButtonElement>('[data-row-action="remove-label"]');
-  if (removeLabelButton) removeLabelButton.hidden = hasMultipleRows || !row?.label;
-  const separatorButton = elements.rowMenu.querySelector<HTMLButtonElement>('[data-row-action="toggle-separator"]');
-  if (separatorButton && row) {
-    separatorButton.textContent = row.separatorBefore ? "Remove separator above" : "Add separator above";
-    separatorButton.hidden = hasMultipleRows;
-  }
-  const copyButton = elements.rowMenu.querySelector<HTMLButtonElement>('[data-row-action="copy"]');
-  if (copyButton) copyButton.hidden = hasMultipleRows;
-  const cutButton = elements.rowMenu.querySelector<HTMLButtonElement>('[data-row-action="cut"]');
-  if (cutButton) cutButton.hidden = hasMultipleRows;
-  elements.rowMenu.setAttribute("aria-hidden", "false");
-  placeFloatingElement(elements.rowMenu, x, y);
-}
-
-function hideRowContextMenu(): void {
-  elements.rowMenu.setAttribute("aria-hidden", "true");
-}
-
-function handleContextAction(action: ContextAction): void {
-  if (!contextCell) return;
-  if (action === "arrow") startArrow(contextCell);
-  if (action === "remove-arrows") removeArrowsFrom(contextCell);
-  if (action === "strike") toggleStrike(contextCell);
-  if (action === "expand") startExpand(contextCell);
-  if (action === "copy") copyCell(contextCell);
-  if (action === "cut") cutCell(contextCell);
-  if (action === "paste") pasteCell(contextCell);
-  if (action === "clear") clearCell(contextCell);
-  hideContextMenu();
-}
-
-function handleRowContextAction(action: RowContextAction): void {
-  if (contextRow === null) return;
-  if (action === "edit-label") editRowLabel(contextRow);
-  if (action === "remove-label") removeRowLabel(contextRow);
-  if (action === "toggle-separator") toggleRowSeparator(contextRow);
-  if (action === "copy") copyInstruction(contextRow);
-  if (action === "cut") cutInstruction(contextRow);
-  if (action === "paste") pasteInstruction(contextRow);
-  if (action === "clear") clearInstruction(contextRow);
-  hideRowContextMenu();
-}
-
 function onInstructionClick(event: MouseEvent): void {
   const target = event.target;
   if (target instanceof Element && target.closest("button")) return;
@@ -729,41 +665,11 @@ function onInstructionClick(event: MouseEvent): void {
 function onInstructionContextMenu(event: MouseEvent): void {
   event.preventDefault();
   const target = event.currentTarget as HTMLElement;
-  contextRow = Number(target.dataset.row);
+  const contextRow = Number(target.dataset.row);
   if (!selection.hasSelectedRow(contextRow)) setSingleRowSelection(contextRow);
-  hideContextMenu();
+  contextMenu.hideCellMenu();
   autocomplete.hide();
-  showRowContextMenu(event.clientX, event.clientY);
-}
-
-function editRowLabel(rowIndex: number): void {
-  labelEditRow = rowIndex;
-  const current = state.rows[rowIndex].label || "";
-  elements.labelModalTitle.textContent = current ? "Edit label" : "Add label";
-  elements.labelInput.value = current;
-  elements.labelModal.setAttribute("aria-hidden", "false");
-  window.requestAnimationFrame(() => {
-    elements.labelInput.focus();
-    elements.labelInput.select();
-  });
-}
-
-function saveRowLabel(): void {
-  if (labelEditRow === null) return;
-  const label = normalizeRowLabel(elements.labelInput.value);
-  if (label) {
-    state.rows[labelEditRow].label = label;
-  } else {
-    delete state.rows[labelEditRow].label;
-  }
-  hideLabelModal();
-  render();
-  scheduleSave();
-}
-
-function hideLabelModal(): void {
-  labelEditRow = null;
-  elements.labelModal.setAttribute("aria-hidden", "true");
+  contextMenu.openRowMenu(contextRow, event.clientX, event.clientY);
 }
 
 function removeRowLabel(rowIndex: number): void {
@@ -897,11 +803,10 @@ function showStatus(message: string): void {
 function cancelTransientUi(): void {
   cancelArrowDraft();
   arrowsAndExpansion.cancelExpandDraft();
-  hideContextMenu();
-  hideRowContextMenu();
+  contextMenu.hideAll();
   autocomplete.hide();
   exportImport.hideExport();
-  hideLabelModal();
+  labelModal.hide();
   closeConfirmModal(false);
   refreshCellClasses();
   renderSelectionInfo();
@@ -945,48 +850,19 @@ elements.closeExportBtn.addEventListener("click", exportImport.hideExport);
 elements.exportModal.addEventListener("click", (event) => {
   if (event.target === elements.exportModal) exportImport.hideExport();
 });
-elements.saveLabelBtn.addEventListener("click", saveRowLabel);
-elements.cancelLabelBtn.addEventListener("click", hideLabelModal);
-elements.labelInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    saveRowLabel();
-  }
-  if (event.key === "Escape") {
-    event.preventDefault();
-    hideLabelModal();
-  }
-});
-elements.labelModal.addEventListener("click", (event) => {
-  if (event.target === elements.labelModal) hideLabelModal();
-});
+labelModal.bindEvents();
 elements.acceptConfirmBtn.addEventListener("click", () => closeConfirmModal(true));
 elements.cancelConfirmBtn.addEventListener("click", () => closeConfirmModal(false));
 elements.confirmModal.addEventListener("click", (event) => {
   if (event.target === elements.confirmModal) closeConfirmModal(false);
 });
-elements.cellMenu.addEventListener("click", (event) => {
-  const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button[data-action]") : null;
-  if (button) handleContextAction(button.dataset.action as ContextAction);
-});
-elements.cellMenu.querySelectorAll<HTMLElement>(".context-submenu").forEach((submenu) => {
-  submenu.addEventListener("mouseenter", () => positionContextSubmenu(submenu));
-  submenu.addEventListener("focusin", () => positionContextSubmenu(submenu));
-});
-elements.rowMenu.querySelectorAll<HTMLElement>(".context-submenu").forEach((submenu) => {
-  submenu.addEventListener("mouseenter", () => positionContextSubmenu(submenu));
-  submenu.addEventListener("focusin", () => positionContextSubmenu(submenu));
-});
-elements.rowMenu.addEventListener("click", (event) => {
-  const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button[data-row-action]") : null;
-  if (button) handleRowContextAction(button.dataset.rowAction as RowContextAction);
-});
+contextMenu.bindEvents();
 elements.autocompleteMenu.addEventListener("autocomplete:accept", (event) => {
   acceptSuggestion((event as CustomEvent<string>).detail);
 });
 document.addEventListener("click", (event) => {
-  if (event.target instanceof Node && !elements.cellMenu.contains(event.target)) hideContextMenu();
-  if (event.target instanceof Node && !elements.rowMenu.contains(event.target)) hideRowContextMenu();
+  if (event.target instanceof Node && !elements.cellMenu.contains(event.target)) contextMenu.hideCellMenu();
+  if (event.target instanceof Node && !elements.rowMenu.contains(event.target)) contextMenu.hideRowMenu();
   if (event.target instanceof Node && !elements.exportMenu.contains(event.target) && event.target !== elements.exportMenuBtn) {
     exportImport.hideExportMenu();
   }
