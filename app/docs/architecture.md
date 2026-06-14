@@ -45,10 +45,14 @@ app/src/
 ├─ styles.css
 ├─ styles/
 │  ├─ base.css
+│  ├─ arrow-layer.css
+│  ├─ instruction-rows.css
 │  ├─ overlays.css
 │  ├─ responsive.css
 │  ├─ sidebar.css
-│  └─ table.css
+│  ├─ stage-cells.css
+│  ├─ table.css
+│  └─ table-layout.css
 ├─ core/
 │  ├─ assembly.ts
 │  ├─ arrows.ts

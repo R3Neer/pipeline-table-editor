@@ -1,0 +1,17 @@
+.arrow-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+.arrow-path {
+  cursor: pointer;
+  pointer-events: none;
+}
+
+.arrow-path:hover {
+  stroke-width: 4;
+}
+
