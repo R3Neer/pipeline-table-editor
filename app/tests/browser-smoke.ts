@@ -726,6 +726,33 @@ async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Page) {
 
   await page.fill("#instructionsInput", originalInstructions);
   await page.waitForSelector('.stage-input[data-row="2"][data-cycle="0"]');
+  await expectHorizontalScrollbarAttachedToTable(page);
+}
+
+async function expectHorizontalScrollbarAttachedToTable(page: Page) {
+  const result = await page.evaluate(() => {
+    const viewport = document.querySelector("#cycleViewport");
+    const cycleTable = document.querySelector(".cycle-table");
+    const instructionSpacer = document.querySelector(".instruction-scrollbar-spacer");
+    if (!(viewport instanceof HTMLElement) || !(cycleTable instanceof HTMLElement) || !(instructionSpacer instanceof HTMLElement)) {
+      return null;
+    }
+    const viewportRect = viewport.getBoundingClientRect();
+    const tableRect = cycleTable.getBoundingClientRect();
+    const spacerRect = instructionSpacer.getBoundingClientRect();
+    return {
+      gap: viewportRect.bottom - tableRect.bottom,
+      hasVerticalOverflow: viewport.classList.contains("has-vertical-overflow"),
+      spacerHeight: spacerRect.height,
+      spacerDisplay: getComputedStyle(instructionSpacer).display
+    };
+  });
+
+  assert.ok(result);
+  assert.equal(result.hasVerticalOverflow, false);
+  assert.ok(result.gap <= 24);
+  assert.ok(result.spacerHeight > 0);
+  assert.notEqual(result.spacerDisplay, "none");
 }
 
 async function expectInstructionAndCyclePanesTouch(page: Page) {

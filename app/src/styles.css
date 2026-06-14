@@ -472,12 +472,14 @@ textarea {
 .instruction-pane {
   position: relative;
   z-index: 6;
+  align-self: start;
   overflow: hidden;
   background: var(--surface);
 }
 
 .cycle-viewport {
   position: relative;
+  align-self: start;
   overflow-x: auto;
   overflow-y: hidden;
   min-width: 0;
@@ -530,9 +532,10 @@ textarea {
 .instruction-scrollbar-spacer {
   display: none;
   height: var(--cycle-horizontal-scrollbar-reserve);
+  background: var(--scrollbar-track);
 }
 
-.table-shell.has-vertical-overflow .instruction-scrollbar-spacer {
+.table-shell.has-horizontal-overflow .instruction-scrollbar-spacer {
   display: block;
 }
 

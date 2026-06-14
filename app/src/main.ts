@@ -126,8 +126,8 @@ function renderTable(): void {
   cycleTable.appendChild(cycleBody);
   elements.instructionMount.replaceChildren(
     instructionTable,
-    makeAddRowZone(),
     makeInstructionScrollbarSpacer(),
+    makeAddRowZone(),
     makeTableBottomSpacer()
   );
   elements.tableMount.replaceChildren(cycleTable, makeCycleAddRowSpacer(), makeTableBottomSpacer());

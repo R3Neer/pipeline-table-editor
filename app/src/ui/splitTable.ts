@@ -61,16 +61,24 @@ function updateCycleViewportOverflow(elements: SplitTableElements): void {
   const cycleTable = elements.tableMount.querySelector<HTMLElement>(".cycle-table");
   const contentHeight = cycleTable?.getBoundingClientRect().height || 0;
   const availableHeight = elements.tableShell.clientHeight;
-  const desiredHeight = Math.ceil(contentHeight + nativeScrollbarReserve);
+  const hasHorizontalOverflow = Boolean(cycleTable && cycleTable.getBoundingClientRect().width > elements.cycleViewport.clientWidth + 1);
+  const desiredHeight = Math.ceil(contentHeight + (hasHorizontalOverflow ? nativeScrollbarReserve : 0));
   const shouldScrollVertically = desiredHeight > availableHeight + 1;
 
   elements.cycleViewport.style.height = shouldScrollVertically ? `${Math.max(0, availableHeight)}px` : `${desiredHeight}px`;
+  elements.instructionMount.style.height = shouldScrollVertically ? `${Math.max(0, availableHeight)}px` : "";
   elements.cycleViewport.classList.toggle("has-vertical-overflow", shouldScrollVertically);
   elements.tableShell.classList.toggle("has-vertical-overflow", shouldScrollVertically);
-  const horizontalScrollbarHeight = shouldScrollVertically
-    ? Math.max(0, elements.cycleViewport.offsetHeight - elements.cycleViewport.clientHeight)
+  elements.tableShell.classList.toggle("has-horizontal-overflow", hasHorizontalOverflow);
+
+  const horizontalScrollbarHeight = hasHorizontalOverflow
+    ? Math.max(0, elements.cycleViewport.offsetHeight - elements.cycleViewport.clientHeight, nativeScrollbarReserve)
     : 0;
   elements.tableShell.style.setProperty("--cycle-horizontal-scrollbar-reserve", `${horizontalScrollbarHeight}px`);
+  if (!shouldScrollVertically) {
+    elements.cycleViewport.scrollTop = 0;
+    elements.instructionMount.scrollTop = 0;
+  }
 }
 
 function syncElementPairHeight(first: HTMLElement | null, second: HTMLElement | null): void {
