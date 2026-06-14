@@ -35,6 +35,7 @@ app/src/
 │  ├─ labelModalController.ts
 │  ├─ modalController.ts
 │  ├─ persistenceController.ts
+│  ├─ rowEditingController.ts
 │  ├─ selectionController.ts
 │  └─ sessionTypes.ts
 ├─ main.ts
@@ -98,7 +99,7 @@ flowchart TD
   Export --> Core
 ```
 
-The application coordinator owns the mutable app state and wires browser events to application controllers. It still performs table rendering directly, but cohesive workflows such as selection, context-menu handling, modal handling, row-label editing, persistence, import/export, and arrow/expansion drafts live in `app/` modules.
+The application coordinator owns the mutable app state and wires browser events to application controllers. It still performs table rendering directly, but cohesive workflows such as selection, context-menu handling, row editing, modal handling, row-label editing, persistence, import/export, and arrow/expansion drafts live in `app/` modules.
 
 The `core/` modules avoid direct DOM and browser-storage access. They hold the serializable data model, stage parsing, validation rules, selection utilities, expansion rules, assembly tokenization, and persisted-state normalization.
 
@@ -123,6 +124,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |
 | Label modal controller | `app/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |
 | Persistence controller | `app/persistenceController.ts` | Debounces saves and delegates actual storage to `integration/storage.ts`. |
+| Row editing controller | `app/rowEditingController.ts` | Coordinates instruction-row add/remove/move/edit actions, row clipboard state, confirmations, render, and save scheduling. |
 | Export/import controller | `app/exportImportController.ts` | Coordinates text export, PNG export, JSON import, clipboard copy, and export menu state. |
 | Arrow and expansion controller | `app/arrowAndExpansionController.ts` | Owns arrow draft, hover target, expansion draft, arrow removal, arrow drawing orchestration, and overwrite confirmations. |
 | Session types | `app/sessionTypes.ts` | Defines transient copied-cell and draft interaction state that is not persisted. |
@@ -609,7 +611,7 @@ The app does not use a virtual DOM or framework state store. Rendering is explic
 5. The SVG arrow layer is redrawn after table updates, scrolling, and resizing.
 6. A debounced save passes the serializable state to the storage integration adapter.
 
-Selection state, context-menu state, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
+Selection state, context-menu state, row-editing workflow state, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
 
 This direct rendering style is simple enough for the size of the project and keeps deployment as a static site.
 

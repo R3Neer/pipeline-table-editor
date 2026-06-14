@@ -9,14 +9,10 @@ import { createExportImportController } from "./app/exportImportController";
 import { createLabelModalController } from "./app/labelModalController";
 import { createModalController } from "./app/modalController";
 import { createPersistenceController } from "./app/persistenceController";
+import { createRowEditingController } from "./app/rowEditingController";
 import { createSelectionController } from "./app/selectionController";
 import type { CopiedCell } from "./app/sessionTypes";
-import {
-  isRowNonEmpty as isInstructionRowNonEmpty,
-  moveRows,
-  removeRows
-} from "./core/rows";
-import { createDefaultState, makeRow } from "./core/state";
+import { createDefaultState } from "./core/state";
 import {
   applyInstructionText,
   changeCycleCount,
@@ -39,7 +35,6 @@ const splitTable = createSplitTableController(elements, () => drawArrows());
 
 let state: AppState = loadStateFromStorage() || createDefaultState();
 let copiedCell: CopiedCell | null = null;
-let copiedInstruction: string | null = null;
 
 const { showConfirm, showNotice, closeConfirmModal } = createModalController(elements);
 const { scheduleSave, saveState } = createPersistenceController({
@@ -83,6 +78,14 @@ const arrowsAndExpansion = createArrowAndExpansionController(
     renderSelectionInfo
   }
 );
+const rowEditing = createRowEditingController({
+  elements,
+  selection,
+  getState: () => state,
+  render,
+  scheduleSave,
+  showConfirm
+});
 const contextMenu = createContextMenuController({
   elements,
   selection,
@@ -99,12 +102,12 @@ const contextMenu = createContextMenuController({
     pasteCell,
     clearCell,
     editRowLabel: labelModal.open,
-    removeRowLabel,
-    toggleRowSeparator,
-    copyInstruction,
-    cutInstruction,
-    pasteInstruction,
-    clearInstruction
+    removeRowLabel: rowEditing.removeRowLabel,
+    toggleRowSeparator: rowEditing.toggleRowSeparator,
+    copyInstruction: rowEditing.copyInstruction,
+    cutInstruction: rowEditing.cutInstruction,
+    pasteInstruction: rowEditing.pasteInstruction,
+    clearInstruction: rowEditing.clearInstruction
   }
 });
 
@@ -256,9 +259,9 @@ function makeInstructionEditor(rowIndex: number): HTMLElement {
   main.appendChild(editor);
   wrapper.append(
     main,
-    makeRowButton("↑", () => moveRowsFrom(rowIndex, -1)),
-    makeRowButton("↓", () => moveRowsFrom(rowIndex, 1)),
-    makeRowButton("×", () => removeRowsFrom(rowIndex), "row-delete-button")
+    makeRowButton("↑", () => rowEditing.moveRowsFrom(rowIndex, -1)),
+    makeRowButton("↓", () => rowEditing.moveRowsFrom(rowIndex, 1)),
+    makeRowButton("×", () => rowEditing.removeRowsFrom(rowIndex), "row-delete-button")
   );
   return wrapper;
 }
@@ -297,7 +300,7 @@ function makeAddRowZone(): HTMLElement {
   button.textContent = "+";
   button.title = "Add row";
   button.setAttribute("aria-label", "Add row");
-  button.addEventListener("click", addInstruction);
+  button.addEventListener("click", rowEditing.addInstruction);
   zone.appendChild(button);
   return zone;
 }
@@ -586,60 +589,6 @@ function applyInstructions(): void {
   scheduleSave();
 }
 
-function addInstruction(): void {
-  state.rows.push(makeRow("", state.cycles));
-  clearRowSelection();
-  render();
-  scheduleSave();
-  window.requestAnimationFrame(() => {
-    const input = document.querySelector<HTMLInputElement>(`tbody tr:nth-child(${state.rows.length}) .instruction-cell input`);
-    if (input) input.focus();
-  });
-}
-
-function removeRow(rowIndex: number): void {
-  void removeSelectedRows([rowIndex]);
-}
-
-function removeRowsFrom(rowIndex: number): void {
-  void removeSelectedRows(getRowActionTargets(rowIndex));
-}
-
-async function removeSelectedRows(rowIndexes: number[]): Promise<void> {
-  const targets = rowIndexes.filter((index) => index >= 0 && index < state.rows.length);
-  if (!targets.length) return;
-  const message = targets.length > 1 ? "Delete selected instructions?" : "Delete this instruction?";
-  if (targets.some(isRowNonEmpty) && !(await showConfirm("Delete instructions", message, "Delete"))) return;
-  if (!removeRows(state, targets)) return;
-  clearRowSelection();
-  render();
-  scheduleSave();
-}
-
-function isRowNonEmpty(rowIndex: number): boolean {
-  return isInstructionRowNonEmpty(state, rowIndex);
-}
-
-function moveRow(rowIndex: number, direction: number): void {
-  moveSelectedRows([rowIndex], direction);
-}
-
-function moveRowsFrom(rowIndex: number, direction: number): void {
-  moveSelectedRows(getRowActionTargets(rowIndex), direction);
-}
-
-function moveSelectedRows(rowIndexes: number[], direction: number): void {
-  const nextSelection = moveRows(state, rowIndexes, direction);
-  if (!nextSelection) return;
-  selection.replaceRowSelection(nextSelection);
-  render();
-  scheduleSave();
-}
-
-function getRowActionTargets(fallback: number): number[] {
-  return selection.getRowActionTargets(fallback);
-}
-
 async function changeCycles(): Promise<void> {
   const nextCycles = Math.max(1, Number.parseInt(elements.cyclesInput.value, 10) || 1);
   if (nextCycles === state.cycles) return;
@@ -670,49 +619,6 @@ function onInstructionContextMenu(event: MouseEvent): void {
   contextMenu.hideCellMenu();
   autocomplete.hide();
   contextMenu.openRowMenu(contextRow, event.clientX, event.clientY);
-}
-
-function removeRowLabel(rowIndex: number): void {
-  delete state.rows[rowIndex].label;
-  render();
-  scheduleSave();
-}
-
-function toggleRowSeparator(rowIndex: number): void {
-  state.rows[rowIndex].separatorBefore = !state.rows[rowIndex].separatorBefore;
-  if (!state.rows[rowIndex].separatorBefore) delete state.rows[rowIndex].separatorBefore;
-  render();
-  scheduleSave();
-}
-
-function clearInstruction(rowIndex: number): void {
-  getRowActionTargets(rowIndex).forEach((target) => {
-    state.rows[target].instruction = "";
-  });
-  elements.instructionsInput.value = state.rows.map((row) => row.instruction).join("\n");
-  render();
-  scheduleSave();
-}
-
-function copyInstruction(rowIndex: number): void {
-  if (selection.getSelectedRows().size > 1) return;
-  copiedInstruction = state.rows[rowIndex].instruction;
-}
-
-function cutInstruction(rowIndex: number): void {
-  if (selection.getSelectedRows().size > 1) return;
-  copyInstruction(rowIndex);
-  clearInstruction(rowIndex);
-}
-
-function pasteInstruction(rowIndex: number): void {
-  if (copiedInstruction === null) return;
-  getRowActionTargets(rowIndex).forEach((target) => {
-    state.rows[target].instruction = copiedInstruction ?? "";
-  });
-  elements.instructionsInput.value = state.rows.map((row) => row.instruction).join("\n");
-  render();
-  scheduleSave();
 }
 
 function startArrow(pos: CellPosition): void {

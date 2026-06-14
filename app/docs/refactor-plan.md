@@ -29,6 +29,7 @@ Recently resolved hotspot:
 - `app/src/ui/dom.ts` no longer mixes DOM lookup with assembly highlighting. Assembly presentation now lives in `app/src/ui/assemblyHighlight.ts`.
 - `app/tests/browser-smoke.ts` has been split into a smoke runner, browser app harness, editor driver, assertion helpers, and focused scenario files under `app/tests/smoke/`.
 - `app/src/main.ts` no longer owns context-menu visibility/action dispatch or row-label modal state; those live in `app/src/app/contextMenuController.ts` and `app/src/app/labelModalController.ts`.
+- `app/src/main.ts` no longer owns instruction-row add/remove/move/edit actions or row clipboard state; those live in `app/src/app/rowEditingController.ts`.
 
 ## Current Audit Status
 
@@ -56,7 +57,7 @@ Known `>500` files:
 7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to extract row-editing responsibilities from `app/src/main.ts`, keeping row mutation work in `core/rows.ts` and UI orchestration in a small `app/rowEditingController.ts`.
+The recommended next phase is to extract cell-editing responsibilities from `app/src/main.ts` in small slices: clipboard/clear/strike first, then keyboard navigation/autocomplete, then cycle/instruction bulk workflows.
 
 ## Multi-Agent Team
 
