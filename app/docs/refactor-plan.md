@@ -30,7 +30,7 @@ Recently resolved hotspot:
 - `app/tests/browser-smoke.ts` has been split into a smoke runner, browser app harness, editor driver, assertion helpers, and focused scenario files under `app/tests/smoke/`.
 - `app/src/main.ts` no longer owns context-menu visibility/action dispatch or row-label modal state; those live in `app/src/app/contextMenuController.ts` and `app/src/app/labelModalController.ts`.
 - `app/src/main.ts` no longer owns instruction-row add/remove/move/edit actions or row clipboard state; those live in `app/src/app/rowEditingController.ts`.
-- `app/src/main.ts` no longer owns simple cell actions or cell clipboard state; clear/copy/cut/paste/strike live in `app/src/app/cellEditingController.ts`.
+- `app/src/main.ts` no longer owns stage-cell handlers, keyboard navigation, autocomplete acceptance, simple cell actions, or cell clipboard state; those live in `app/src/app/cellEditingController.ts`.
 
 ## Current Audit Status
 
@@ -58,7 +58,7 @@ Known `>500` files:
 7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to continue extracting cell-editing responsibilities from `app/src/main.ts`: keyboard navigation/autocomplete first, then cycle/instruction bulk workflows.
+The recommended next phase is to extract remaining bulk table workflows from `app/src/main.ts`: instruction textarea application, cycle count changes, and full-table clearing.
 
 ## Multi-Agent Team
 

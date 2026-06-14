@@ -1,6 +1,5 @@
 import "./styles.css";
 
-import { samePos } from "./core/arrows";
 import { getKnownLabels, getLabelColor } from "./core/labels";
 import type { AppState, CellPosition } from "./core/model";
 import { createArrowAndExpansionController } from "./app/arrowAndExpansionController";
@@ -19,7 +18,6 @@ import {
   pruneArrowsFromStruckCells as pruneStruckCellArrows,
   wouldLoseCellsAfterCycleReduction
 } from "./core/useCases/tableEditing";
-import { normalizeCellText } from "./core/validation";
 import type { ExportFormat } from "./export/types";
 import { loadStateFromStorage } from "./integration/storage";
 import { createAutocompleteController } from "./ui/autocomplete";
@@ -85,17 +83,28 @@ const rowEditing = createRowEditingController({
   scheduleSave,
   showConfirm
 });
+let contextMenu: ReturnType<typeof createContextMenuController>;
 const cellEditing = createCellEditingController({
   selection,
   getState: () => state,
   getCellElement,
-  hideAutocomplete: autocomplete.hide,
+  autocomplete,
+  arrowExpansion: arrowsAndExpansion,
+  contextMenu: {
+    hideCellMenu: () => contextMenu.hideCellMenu(),
+    openCellMenu: (pos, x, y) => contextMenu.openCellMenu(pos, x, y)
+  },
+  clearRowSelection,
+  setSingleSelection,
+  updateSelectionFromClick,
+  renderSelectionInfo,
+  cancelTransientUi,
   refreshCellClasses,
   scheduleSave,
   drawArrows,
   removeOutgoingArrows
 });
-const contextMenu = createContextMenuController({
+contextMenu = createContextMenuController({
   elements,
   selection,
   getState: () => state,
@@ -182,14 +191,14 @@ function renderTable(): void {
       input.dataset.cycle = String(cycleIndex);
       input.autocomplete = "off";
       input.spellcheck = false;
-      input.addEventListener("input", onCellInput);
-      input.addEventListener("focus", onCellFocus);
-      input.addEventListener("keydown", onCellKeyDown);
-      input.addEventListener("click", onCellClick);
-      input.addEventListener("mouseenter", onCellMouseEnter);
-      input.addEventListener("mouseleave", onCellMouseLeave);
-      input.addEventListener("contextmenu", onCellContextMenu);
-      input.addEventListener("blur", () => window.setTimeout(hideAutocompleteIfFocusLeftCells, 120));
+      input.addEventListener("input", cellEditing.onCellInput);
+      input.addEventListener("focus", cellEditing.onCellFocus);
+      input.addEventListener("keydown", cellEditing.onCellKeyDown);
+      input.addEventListener("click", cellEditing.onCellClick);
+      input.addEventListener("mouseenter", cellEditing.onCellMouseEnter);
+      input.addEventListener("mouseleave", cellEditing.onCellMouseLeave);
+      input.addEventListener("contextmenu", cellEditing.onCellContextMenu);
+      input.addEventListener("blur", () => window.setTimeout(cellEditing.hideAutocompleteIfFocusLeftCells, 120));
       td.appendChild(input);
       cycleTr.appendChild(td);
     });
@@ -339,149 +348,8 @@ function refreshCellClasses(): void {
   });
 }
 
-function onCellInput(event: Event): void {
-  const input = event.currentTarget as HTMLInputElement;
-  const pos = getInputPosition(input);
-  const normalized = normalizeCellText(input.value);
-  state.rows[pos.row].cells[pos.cycle].text = normalized;
-  if (input.value !== normalized) input.value = normalized;
-  refreshCellClasses();
-  autocomplete.show(input, pos, state);
-  scheduleSave();
-  window.requestAnimationFrame(drawArrows);
-}
-
-function onCellFocus(event: FocusEvent): void {
-  const input = event.currentTarget as HTMLInputElement;
-  clearRowSelection();
-  const selectedCell = getInputPosition(input);
-  selection.setSelectedCell(selectedCell);
-  if (!selection.hasSelectionAnchor()) setSingleSelection(selectedCell);
-  contextMenu.hideCellMenu();
-  refreshCellClasses();
-  renderSelectionInfo();
-  autocomplete.show(input, selectedCell, state);
-}
-
-function onCellClick(event: MouseEvent): void {
-  const input = event.currentTarget as HTMLInputElement;
-  clearRowSelection();
-  const selectedCell = getInputPosition(input);
-  selection.setSelectedCell(selectedCell);
-  contextMenu.hideCellMenu();
-  const expandFrom = arrowsAndExpansion.getExpandFrom();
-  if (expandFrom && !samePos(expandFrom, selectedCell)) {
-    void arrowsAndExpansion.tryExpandTo(selectedCell);
-    return;
-  }
-  if (arrowsAndExpansion.getArrowFrom()) {
-    arrowsAndExpansion.tryCreateArrowTo(selectedCell);
-    return;
-  }
-  updateSelectionFromClick(selectedCell, event);
-  renderSelectionInfo();
-  if (isSelectionModifierClick(event)) {
-    autocomplete.hide();
-    return;
-  }
-  autocomplete.show(input, selectedCell, state);
-}
-
-function onCellMouseEnter(event: MouseEvent): void {
-  arrowsAndExpansion.setArrowHoverTarget(getInputPosition(event.currentTarget as HTMLInputElement));
-}
-
-function onCellMouseLeave(event: MouseEvent): void {
-  arrowsAndExpansion.clearArrowHoverTargetIfMatches(getInputPosition(event.currentTarget as HTMLInputElement));
-}
-
-function onCellContextMenu(event: MouseEvent): void {
-  event.preventDefault();
-  const input = event.currentTarget as HTMLInputElement;
-  clearRowSelection();
-  const contextCell = getInputPosition(input);
-  selection.setSelectedCell(contextCell);
-  if (!selection.hasSelectedCell(contextCell)) setSingleSelection(contextCell);
-  refreshCellClasses();
-  autocomplete.hide();
-  contextMenu.openCellMenu(contextCell, event.clientX, event.clientY);
-}
-
-function onCellKeyDown(event: KeyboardEvent): void {
-  const input = event.currentTarget as HTMLInputElement;
-  const pos = getInputPosition(input);
-  const activeSuggestion = autocomplete.active;
-
-  if ((event.key === "ArrowUp" || event.key === "ArrowDown") && activeSuggestion.values.length) {
-    event.preventDefault();
-    autocomplete.move(event.key === "ArrowDown" ? 1 : -1);
-    return;
-  }
-  if (event.key === "Enter" && activeSuggestion.values.length) {
-    event.preventDefault();
-    acceptSuggestion(activeSuggestion.values[activeSuggestion.index]);
-    return;
-  }
-  if (event.key === "Tab" && activeSuggestion.values.length) {
-    event.preventDefault();
-    acceptSuggestion(activeSuggestion.values[activeSuggestion.index]);
-    return;
-  }
-  if (event.key === "Tab") {
-    event.preventDefault();
-    focusRelativeCell(pos, event.shiftKey ? -1 : 1);
-    return;
-  }
-  if (event.key === "ArrowUp") {
-    event.preventDefault();
-    focusCell(pos.row - 1, pos.cycle);
-    return;
-  }
-  if (event.key === "ArrowDown") {
-    event.preventDefault();
-    focusCell(pos.row + 1, pos.cycle);
-    return;
-  }
-  if (event.key === "Delete") {
-    event.preventDefault();
-    cellEditing.clearCell(pos);
-    return;
-  }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
-    event.preventDefault();
-    cellEditing.toggleStrike(pos);
-    return;
-  }
-  if (event.key === "Escape") {
-    cancelTransientUi();
-  }
-}
-
-function focusRelativeCell(pos: CellPosition, offset: number): void {
-  const total = state.rows.length * state.cycles;
-  if (total === 0) return;
-  const flat = pos.row * state.cycles + pos.cycle;
-  const next = Math.max(0, Math.min(total - 1, flat + offset));
-  focusCell(Math.floor(next / state.cycles), next % state.cycles);
-}
-
-function focusCell(row: number, cycle: number): void {
-  if (row < 0 || row >= state.rows.length || cycle < 0 || cycle >= state.cycles) return;
-  const input = getCellElement({ row, cycle });
-  if (input) {
-    clearRowSelection();
-    input.focus();
-    input.select();
-    setSingleSelection({ row, cycle });
-  }
-}
-
 function updateSelectionFromClick(pos: CellPosition, event: MouseEvent): void {
   selection.updateSelectionFromClick(pos, event);
-}
-
-function isSelectionModifierClick(event: MouseEvent): boolean {
-  return event.shiftKey || event.altKey || event.ctrlKey || event.metaKey;
 }
 
 function setSingleSelection(pos: CellPosition): void {
@@ -605,27 +473,6 @@ function renderSelectionInfo(): void {
   refreshCellClasses();
 }
 
-function acceptSuggestion(value: string): void {
-  const pos = autocomplete.active.pos || selection.getSelectedCell();
-  if (!pos) return;
-  const cell = state.rows[pos.row].cells[pos.cycle];
-  cell.text = value;
-  const input = getCellElement(pos);
-  if (input) {
-    input.value = value;
-    input.focus();
-  }
-  autocomplete.hide();
-  refreshCellClasses();
-  scheduleSave();
-}
-
-function hideAutocompleteIfFocusLeftCells(): void {
-  const activeElement = document.activeElement;
-  if (activeElement instanceof HTMLInputElement && activeElement.classList.contains("stage-input")) return;
-  autocomplete.hide();
-}
-
 async function clearAll(): Promise<void> {
   if (!(await showConfirm("Clear table", "Clear the whole table?", "Clear"))) return;
   state = createDefaultState();
@@ -716,7 +563,7 @@ elements.confirmModal.addEventListener("click", (event) => {
 });
 contextMenu.bindEvents();
 elements.autocompleteMenu.addEventListener("autocomplete:accept", (event) => {
-  acceptSuggestion((event as CustomEvent<string>).detail);
+  cellEditing.acceptSuggestion((event as CustomEvent<string>).detail);
 });
 document.addEventListener("click", (event) => {
   if (event.target instanceof Node && !elements.cellMenu.contains(event.target)) contextMenu.hideCellMenu();

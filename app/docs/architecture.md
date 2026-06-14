@@ -121,7 +121,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Application composition | `main.ts` | Owns `AppState`, renders the table, wires browser events, and delegates cohesive workflows to application controllers. |
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
 | Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
-| Cell editing controller | `app/cellEditingController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
+| Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM handlers, keyboard navigation, autocomplete acceptance, simple cell actions, and cell clipboard state. |
 | Context menu controller | `app/contextMenuController.ts` | Owns cell/row context-menu state, menu visibility, action availability, submenu positioning, and action dispatch through callbacks. |
 | Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |
 | Label modal controller | `app/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |
