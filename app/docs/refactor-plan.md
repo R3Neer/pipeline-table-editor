@@ -18,7 +18,6 @@ Allowed code exceptions must explain why the file is large and what would make i
 
 | File | Current concern | Direction |
 | --- | --- | --- |
-| `app/src/main.ts` | Application coordinator still owns rendering, editing flows, menus, labels, and event wiring. | Continue extracting cohesive `app/` controllers and view helpers. |
 | `app/src/styles.css` | Global stylesheet mixes table, layout, menus, modals, export panel, and visual states. | Split by visual domain while preserving selectors and UX. |
 | `app/src/core/autocomplete.ts` | Autocomplete mixes providers, ranking, stage progression, history, and numbering rules. | Introduce small providers and ranking functions. |
 | `app/src/export/image.ts` | PNG export mixes metrics, rendering, theme, text drawing, cells, and arrows. | Split into layout, drawing, theme, and orchestration modules. |
@@ -31,6 +30,7 @@ Recently resolved hotspot:
 - `app/src/main.ts` no longer owns context-menu visibility/action dispatch or row-label modal state; those live in `app/src/app/contextMenuController.ts` and `app/src/app/labelModalController.ts`.
 - `app/src/main.ts` no longer owns instruction-row add/remove/move/edit actions or row clipboard state; those live in `app/src/app/rowEditingController.ts`.
 - `app/src/main.ts` no longer owns stage-cell handlers, keyboard navigation, autocomplete acceptance, simple cell actions, or cell clipboard state; those live in `app/src/app/cellEditingController.ts`.
+- `app/src/main.ts` no longer owns bulk table workflows, global event binding, textarea resize binding, or small table DOM helpers. Those live in `app/src/app/tableWorkflowController.ts`, `app/src/app/appEventBindings.ts`, `app/src/ui/instructionColumnWidth.ts`, and `app/src/ui/tableElements.ts`.
 
 ## Current Audit Status
 
@@ -38,14 +38,13 @@ Recently resolved hotspot:
 
 Known `>500` files:
 
-- `app/src/main.ts`
 - `app/src/styles.css`
 
 ## Refactor Phases
 
 1. Done: create a clean checkpoint from the current controller extraction.
 2. Done: add a file-size audit script so oversized files are visible during refactors.
-3. Keep thinning `main.ts`:
+3. Done for the current `>500` guardrail: keep thinning `main.ts`:
    - `cellEditingController`
    - `rowEditingController`
    - `contextMenuController`
@@ -58,7 +57,7 @@ Known `>500` files:
 7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to extract remaining bulk table workflows from `app/src/main.ts`: instruction textarea application, cycle count changes, and full-table clearing.
+The recommended next phase is to split `app/src/styles.css` by visual domain while preserving selectors and visible behavior.
 
 ## Multi-Agent Team
 

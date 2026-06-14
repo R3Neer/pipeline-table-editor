@@ -22,7 +22,7 @@ cd app
 npm run audit:file-sizes
 ```
 
-The audit currently fails by design while `src/main.ts` and `src/styles.css` remain above the 500-line threshold. Keep that failure visible until those files are split or explicitly documented as exceptions.
+The audit currently fails by design while `src/styles.css` remains above the 500-line threshold. Keep that failure visible until that stylesheet is split or explicitly documented as an exception.
 
 Workflow rule:
 

@@ -61,7 +61,7 @@ The output is written to `dist/`.
   - `app/src/main.ts`: lightweight application coordinator and event wiring.
   - `app/src/core/`: data model, state normalization, labels, stage parsing, validation, autocomplete, arrow, row, selection, and expansion rules.
   - `app/src/core/useCases/`: deterministic table-editing workflows with no DOM access.
-  - `app/src/app/`: application controllers for selection, context menus, cell editing, row editing, modals, row labels, persistence, import/export, arrows/expansion, plus transient session types.
+  - `app/src/app/`: application controllers for event binding, selection, context menus, cell editing, row editing, table workflows, modals, row labels, persistence, import/export, arrows/expansion, plus transient session types.
   - `app/src/integration/`: browser integration that adapts app state to external services such as `localStorage`.
   - `app/src/ui/`: DOM helpers, split-table scrolling/layout, autocomplete menu rendering, floating positioning, arrow drawing, and download helpers.
   - `app/src/export/`: Markdown/text/JSON/PNG export code and export format metadata.
@@ -84,7 +84,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run test:all`: unit, integration, and browser smoke tests.
 - `npm run test:smoke`: browser smoke test.
 
-`npm run audit:file-sizes` is currently expected to fail because the active refactor intentionally tracks two known oversized files: `app/src/main.ts` and `app/src/styles.css`. Treat that failure as the architecture backlog, not as a runtime regression.
+`npm run audit:file-sizes` is currently expected to fail because the active refactor intentionally tracks one known oversized file: `app/src/styles.css`. Treat that failure as the architecture backlog, not as a runtime regression.
 
 ## Architecture And Refactor Policy
 

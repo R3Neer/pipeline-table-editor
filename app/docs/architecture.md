@@ -21,7 +21,7 @@ The code follows a small layered split:
 - `ui/`: browser-facing helpers for DOM lookup, autocomplete rendering, SVG arrows, and downloads.
 - `export/`: output generation for JSON, Markdown, plain text, and PNG.
 
-`main.ts` is intentionally the only broad composition root. It connects browser events, mutable state, rendering, persistence adapters, and feature controllers. It should stay thin: pure rules belong in `core/`, browser adapters belong in `integration/`, reusable presentation helpers belong in `ui/`, and cohesive interaction workflows belong in `app/` controllers.
+`main.ts` is intentionally the broad composition root. It creates browser elements, mutable state, controllers, event bindings, rendering, and persistence adapters. It should stay thin: pure rules belong in `core/`, browser adapters belong in `integration/`, reusable presentation helpers belong in `ui/`, and cohesive interaction workflows belong in `app/` controllers.
 
 ## Directory Layout
 
@@ -29,6 +29,7 @@ The code follows a small layered split:
 app/src/
 ├─ app/
 │  ├─ appContext.ts
+│  ├─ appEventBindings.ts
 │  ├─ arrowAndExpansionController.ts
 │  ├─ cellEditingController.ts
 │  ├─ contextMenuController.ts
@@ -38,7 +39,8 @@ app/src/
 │  ├─ persistenceController.ts
 │  ├─ rowEditingController.ts
 │  ├─ selectionController.ts
-│  └─ sessionTypes.ts
+│  ├─ sessionTypes.ts
+│  └─ tableWorkflowController.ts
 ├─ main.ts
 ├─ styles.css
 ├─ core/
@@ -69,9 +71,11 @@ app/src/
    ├─ cellClasses.ts
    ├─ dom.ts
    ├─ download.ts
+   ├─ instructionColumnWidth.ts
    ├─ menuActions.ts
    ├─ positioning.ts
-   └─ splitTable.ts
+   ├─ splitTable.ts
+   └─ tableElements.ts
 ```
 
 ## Layering
@@ -119,6 +123,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Area | Modules | Responsibility |
 | --- | --- | --- |
 | Application composition | `main.ts` | Owns `AppState`, renders the table, wires browser events, and delegates cohesive workflows to application controllers. |
+| Event binding | `app/appEventBindings.ts` | Wires global DOM events to controllers and keeps listener details out of the composition root. |
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
 | Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
 | Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM handlers, keyboard navigation, autocomplete acceptance, simple cell actions, and cell clipboard state. |
@@ -127,6 +132,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Label modal controller | `app/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |
 | Persistence controller | `app/persistenceController.ts` | Debounces saves and delegates actual storage to `integration/storage.ts`. |
 | Row editing controller | `app/rowEditingController.ts` | Coordinates instruction-row add/remove/move/edit actions, row clipboard state, confirmations, render, and save scheduling. |
+| Table workflow controller | `app/tableWorkflowController.ts` | Coordinates whole-table workflows such as instruction textarea application, cycle count changes, and full-table clearing. |
 | Export/import controller | `app/exportImportController.ts` | Coordinates text export, PNG export, JSON import, clipboard copy, and export menu state. |
 | Arrow and expansion controller | `app/arrowAndExpansionController.ts` | Owns arrow draft, hover target, expansion draft, arrow removal, arrow drawing orchestration, and overwrite confirmations. |
 | Session types | `app/sessionTypes.ts` | Defines transient copied-cell and draft interaction state that is not persisted. |
@@ -149,8 +155,10 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Cell class composition | `ui/cellClasses.ts` | Translates domain and session state into stable CSS class names for stage cells. |
 | Arrow drawing | `ui/arrows.ts` | Regenerates SVG paths and arrowheads from stored arrow positions. |
 | Download helpers | `ui/download.ts` | Creates object URLs and triggers browser downloads. |
+| Instruction column width | `ui/instructionColumnWidth.ts` | Computes and applies the responsive instruction-column width from rendered content. |
 | Floating positioning | `ui/positioning.ts` | Keeps autocomplete menus, context menus, and submenus inside the viewport. |
 | Split table layout | `ui/splitTable.ts` | Synchronizes instruction and cycle panes, vertical wheel scrolling, row heights, overflow classes, and bottom breathing room. |
+| Table element helpers | `ui/tableElements.ts` | Creates small reusable DOM elements such as table headers, row buttons, and scrollbar spacers. |
 | Text exports | `export/index.ts` | Generates JSON, Markdown, and plain text. |
 | Export service | `export/service.ts` | Chooses text export content and file metadata such as MIME type and extension. |
 | Image export | `export/image.ts` | Renders a high-resolution PNG with canvas. |
@@ -613,7 +621,7 @@ The app does not use a virtual DOM or framework state store. Rendering is explic
 5. The SVG arrow layer is redrawn after table updates, scrolling, and resizing.
 6. A debounced save passes the serializable state to the storage integration adapter.
 
-Selection state, context-menu state, cell clipboard state, row-editing workflow state, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
+Selection state, context-menu state, cell clipboard state, row-editing workflow state, table workflow orchestration, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
 
 This direct rendering style is simple enough for the size of the project and keeps deployment as a static site.
 
@@ -673,9 +681,8 @@ Thresholds:
 - over 300 lines: warn and require a split plan or clear justification
 - over 500 lines: fail, unless the file is a documented exception
 
-The current expected failures are intentional architecture backlog items:
+The current expected failure is an intentional architecture backlog item:
 
-- `src/main.ts`
 - `src/styles.css`
 
 The audit does not include Markdown reference documents because long-form documentation can be valid when it remains well sectioned and easy to scan.
