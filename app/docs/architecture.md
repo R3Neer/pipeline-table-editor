@@ -8,7 +8,7 @@ The main design goal is to keep pipeline-table editing explicit and predictable.
 
 ## Architectural Summary
 
-Pipeline Table Editor is a client-only static web app. It has one in-memory `AppState`, rendered directly into the DOM by the application coordinator. User actions mutate that state, refresh the affected UI, schedule persistence, and redraw SVG forwarding arrows when needed.
+Pipeline Table Editor is a client-only static web app. It has one in-memory `AppState`, rendered directly into the DOM by the application coordinator. User actions mutate that state, refresh the affected UI, schedule persistence, and redraw SVG forwarding arrows when needed. The table is rendered as a fixed instruction pane next to a horizontally scrollable cycle viewport so instruction labels stay visible while navigating long timelines.
 
 The code follows a simple three-part split:
 
@@ -26,6 +26,8 @@ app/src/
 ├─ styles.css
 ├─ core/
 │  ├─ assembly.ts
+│  ├─ arrows.ts
+│  ├─ autocomplete.ts
 │  ├─ expansion.ts
 │  ├─ model.ts
 │  ├─ selection.ts
@@ -77,13 +79,15 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Application coordination | `main.ts` | Owns `AppState`, renders the table, handles events, coordinates persistence, arrows, autocomplete, context menu actions, import, and export. |
 | Domain model | `core/model.ts` | Defines serializable state and UI helper types. |
 | Stage syntax | `core/stage.ts` | Normalizes and parses stage text such as `IF`, `EX2`, or `IDp`. |
-| Validation | `core/validation.ts` | Applies visual error rules for stage order, missing previous stages, pending `p` suffixes, and valid arrow targets. |
+| Autocomplete rules | `core/autocomplete.ts` | Builds ranked stage suggestions from state, current input, pending-stage propagation, and local numbering habits. |
+| Validation | `core/validation.ts` | Applies visual error rules for stage order, missing previous stages, and pending `p` suffixes. |
+| Arrow rules | `core/arrows.ts` | Validates forwarding arrow shape, target constraints, duplicate incoming targets, and row remapping. |
 | Expansion | `core/expansion.ts` | Computes `Expand` results and whether filled cells would actually change. |
 | Selection | `core/selection.ts` | Builds rectangular, vertical, and keyed multi-cell selections. |
 | Persistence | `core/state.ts` | Creates, normalizes, loads, and saves serializable app state. |
 | Assembly highlighting | `core/assembly.ts` | Tokenizes assembly instructions into instruction/register/plain tokens. |
 | DOM helpers | `ui/dom.ts` | Reads required DOM elements and renders highlighted instruction text. |
-| Autocomplete UI | `ui/autocomplete.ts` | Builds, ranks, displays, moves through, and accepts stage suggestions. |
+| Autocomplete UI | `ui/autocomplete.ts` | Displays suggestions, handles active option movement, and emits accepted values. |
 | Arrow drawing | `ui/arrows.ts` | Regenerates SVG paths and arrowheads from stored arrow positions. |
 | Download helpers | `ui/download.ts` | Creates object URLs and triggers browser downloads. |
 | Text exports | `export/index.ts` | Generates JSON, Markdown, and plain text. |
@@ -154,7 +158,7 @@ Each cell stores only user-authored stage text and whether it is struck through.
 
 ## Stage Parsing And Validation
 
-Stage parsing is centralized in `core/stage.ts`.
+Stage parsing is centralized in `core/stage.ts`. Higher-level stage validation lives in `core/validation.ts`.
 
 Accepted stage roots:
 
@@ -241,6 +245,15 @@ sequenceDiagram
 
 `refreshCellClasses()` recalculates all stage cells because some rules depend on neighboring cells and cells above the current one.
 
+## Autocomplete Rules
+
+Autocomplete is split in two layers:
+
+- `core/autocomplete.ts` is a pure suggestion engine. It receives `AppState`, a `CellPosition`, and the raw input text, then returns ordered string suggestions.
+- `ui/autocomplete.ts` is the DOM controller. It positions the menu, renders buttons, moves the active option, and dispatches accepted values.
+
+The core engine deliberately shares validation helpers such as `requiresPendingFromAbove`. That keeps the menu from suggesting stages that the validator already knows cannot be valid, especially around vertical pending-stage propagation and numbered pending stages.
+
 ## Autocomplete Sequence
 
 ```mermaid
@@ -249,6 +262,7 @@ sequenceDiagram
   participant input as input : StageInput
   participant app as app : ApplicationCoordinator
   participant autocomplete as autocomplete : AutocompleteController
+  participant engine as engine : AutocompleteEngine
   participant stage as stage : StageRules
   participant validation as validation : ValidationRules
 
@@ -258,17 +272,21 @@ sequenceDiagram
   activate app
   app->>autocomplete: show(input, pos, state)
   activate autocomplete
-  autocomplete->>stage: parseStageText(previous cells)
+  autocomplete->>engine: getAutocompleteSuggestions(state, pos, value)
+  activate engine
+  engine->>stage: parseStageText(previous cells)
   activate stage
-  stage-->>autocomplete: parsed stages
+  stage-->>engine: parsed stages
   deactivate stage
-  autocomplete->>validation: requiresPendingFromAbove(state, pos)
+  engine->>validation: requiresPendingFromAbove(state, pos)
   activate validation
-  validation-->>autocomplete: pending requirement
+  validation-->>engine: pending requirement
   deactivate validation
-  autocomplete->>autocomplete: build, rank, and deduplicate candidates
-  activate autocomplete
-  deactivate autocomplete
+  engine->>engine: build, rank, and deduplicate candidates
+  activate engine
+  deactivate engine
+  engine-->>autocomplete: ordered suggestions
+  deactivate engine
   autocomplete-->>input: render suggestion menu
   deactivate autocomplete
   deactivate app
@@ -294,7 +312,7 @@ sequenceDiagram
   deactivate input
 ```
 
-`Enter` closes autocomplete instead of accepting the highlighted option. `Tab` accepts the highlighted option.
+`Enter` and `Tab` accept the highlighted option. `ArrowUp` and `ArrowDown` move through autocomplete options while the menu is open instead of moving between cells.
 
 ## Context Menu And Cell Actions
 
@@ -381,7 +399,7 @@ Expansion rules are pure domain logic in `core/expansion.ts`; UI confirmation an
 sequenceDiagram
   actor user as user : User
   participant app as app : ApplicationCoordinator
-  participant validation as validation : ValidationRules
+  participant arrowRules as arrowRules : ArrowRules
   participant arrows as arrows : ArrowRenderer
   participant svg as svg : SVGArrowLayer
 
@@ -392,27 +410,44 @@ sequenceDiagram
   deactivate app
   deactivate app
 
-  user->>app: Click target cell
+  user->>app: Hover candidate target
   activate app
-  app->>validation: isValidArrowTarget(origin, target, state)
-  activate validation
-  validation-->>app: true or false
-  deactivate validation
-  app->>app: add PipelineArrow
+  app->>arrowRules: isValidArrowTarget(origin, target, state)
+  activate arrowRules
+  arrowRules-->>app: true or false
+  deactivate arrowRules
+  app->>app: mark valid target with green hover state
   activate app
   deactivate app
-  app->>arrows: drawArrows(...)
-  activate arrows
-  arrows->>svg: replace SVG paths and marker
-  activate svg
-  svg-->>arrows: layer updated
-  deactivate svg
-  arrows-->>app: drawing complete
-  deactivate arrows
+  deactivate app
+
+  user->>app: Click target cell
+  activate app
+  app->>arrowRules: isValidArrowTarget(origin, target, state)
+  activate arrowRules
+  arrowRules-->>app: true or false
+  deactivate arrowRules
+  alt valid target
+    app->>app: add PipelineArrow and clear ArrowDraft
+    activate app
+    deactivate app
+    app->>arrows: drawArrows(...)
+    activate arrows
+    arrows->>svg: replace SVG paths and marker
+    activate svg
+    svg-->>arrows: layer updated
+    deactivate svg
+    arrows-->>app: drawing complete
+    deactivate arrows
+  else invalid target
+    app->>app: clear ArrowDraft without changing arrows
+    activate app
+    deactivate app
+  end
   deactivate app
 ```
 
-Arrows are stored in state as row/cycle positions. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes.
+Arrows are stored in state as row/cycle positions. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes. Arrow creation is single-shot: the first clicked target either creates a valid arrow or cancels the draft. A cell that already has an incoming arrow is not a valid target for another arrow.
 
 ## Export Sequence
 
@@ -477,7 +512,7 @@ flowchart TD
 The app does not use a virtual DOM or framework state store. Rendering is explicit:
 
 1. `main` keeps the current `AppState` in memory.
-2. `render()` rebuilds the editable table and synchronizes sidebar controls.
+2. `render()` rebuilds the fixed instruction pane and scrollable cycle table, then synchronizes sidebar controls.
 3. Individual input handlers update state immediately.
 4. CSS classes are derived from current validation and interaction state.
 5. The SVG arrow layer is redrawn after table updates, scrolling, and resizing.
@@ -487,7 +522,23 @@ This direct rendering style is simple enough for the size of the project and kee
 
 ## Testing Strategy
 
-The current test suite is centered on `tests/browser-smoke.mjs`. It exercises the integrated app through a real browser:
+The test suite has two complementary layers:
+
+- `tests/core.test.ts` runs fast unit tests for DOM-free rules.
+- `tests/browser-smoke.ts` exercises the integrated app through a real browser.
+
+The unit tests cover:
+
+- stage parsing and normalization
+- accepted and rejected stage formats
+- horizontal pending-stage resolution
+- vertical pending-stage propagation
+- contextual autocomplete ranking and filtering
+- expansion value generation and overwrite detection
+- arrow target validation
+- JSON serialization followed by state normalization
+
+The smoke test covers:
 
 - table rendering
 - cell validation
@@ -498,10 +549,11 @@ The current test suite is centered on `tests/browser-smoke.mjs`. It exercises th
 - context menu behavior
 - multi-selection
 - arrows
+- split table layout and native scrolling
 - JSON, Markdown, text, and PNG export
 - import and persistence
 
-The smoke test is intentionally broad because the app is DOM-heavy and many features interact through shared state. Pure modules in `core/` are now easier to unit-test later if the project needs a larger test suite.
+The smoke test remains broad because many visible features interact through shared state, scrolling, focus, and browser layout.
 
 ## Architectural Boundaries
 
@@ -509,6 +561,8 @@ Keep these boundaries when adding new features:
 
 - Add stage syntax and parsing rules in `core/stage.ts`.
 - Add validation rules in `core/validation.ts`.
+- Add autocomplete ranking or filtering rules in `core/autocomplete.ts`.
+- Add forwarding-arrow constraints in `core/arrows.ts`.
 - Add deterministic table-editing rules in `core/`.
 - Keep DOM queries and element creation in `ui/` or `main.ts`.
 - Keep file/download browser mechanics in `ui/download.ts`.

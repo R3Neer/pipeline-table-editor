@@ -8,6 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "screenshots": "tsx tests/capture-screenshots.ts",
+    "test:unit": "tsx tests/core.test.ts",
     "test:smoke": "tsx tests/browser-smoke.ts"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 import type { AppState, CellData, InstructionRow, PipelineArrow } from "./model";
-import { isUsableArrow, isValidArrowTarget, normalizeCellText } from "./validation";
+import { isUsableArrow, isValidArrowTarget } from "./arrows";
+import { normalizeCellText } from "./stage";
 
 const STORAGE_KEY = "pipeline-table-editor-state-v2";
 const LEGACY_STORAGE_KEY = "pipeline-table-editor-state-v1";
@@ -40,16 +41,17 @@ export function saveStateToStorage(state: AppState): void {
 export function normalizeState(raw: Partial<AppState>): AppState {
   const cycles = Math.max(1, Number.parseInt(String(raw.cycles), 10) || 1);
   const rows = Array.isArray(raw.rows) ? raw.rows : [];
+  const arrows = normalizeArrows(raw.arrows);
   const normalized: AppState = {
     title: String(raw.title || ""),
     cycles,
     rows: rows.map((row) => normalizeRow(row, cycles)),
-    arrows: normalizeArrows(raw.arrows)
+    arrows: []
   };
 
-  normalized.arrows = normalized.arrows.filter((arrow) =>
-    isValidArrowTarget(arrow.from, arrow.to, normalized)
-  );
+  arrows.forEach((arrow) => {
+    if (isValidArrowTarget(arrow.from, arrow.to, normalized)) normalized.arrows.push(arrow);
+  });
   return normalized;
 }
 

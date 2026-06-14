@@ -67,10 +67,11 @@ export interface AppElements {
   copyExportBtn: HTMLButtonElement;
   importInput: HTMLTextAreaElement;
   importBtn: HTMLButtonElement;
-  saveBtn: HTMLButtonElement;
   clearBtn: HTMLButtonElement;
   saveStatus: HTMLElement;
   tableShell: HTMLElement;
+  instructionMount: HTMLElement;
+  cycleViewport: HTMLElement;
   tableMount: HTMLElement;
   arrowLayer: SVGSVGElement;
   exportModal: HTMLElement;

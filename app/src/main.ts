@@ -1,5 +1,6 @@
 import "./styles.css";
 
+import { isValidArrowTarget, remapMovedRow, samePos } from "./core/arrows";
 import { canStartExpand as canStartExpandStage, makeExpansionValues, wouldChangeFilledCells } from "./core/expansion";
 import type {
   AppState,
@@ -12,14 +13,7 @@ import type {
 } from "./core/model";
 import { makeRectangularSelection, makeVerticalSelection, parsePositionKey, positionKey } from "./core/selection";
 import { createDefaultState, loadState, makeRow, normalizeState, saveStateToStorage } from "./core/state";
-import {
-  getValidRoot,
-  isCellTextValid,
-  isValidArrowTarget,
-  normalizeCellText,
-  remapMovedRow,
-  samePos
-} from "./core/validation";
+import { getValidRoot, isCellTextValid, normalizeCellText } from "./core/validation";
 import { exportJson, exportMarkdown, exportPng, exportText } from "./export/index";
 import { drawArrows as drawArrowLayer } from "./ui/arrows";
 import { createAutocompleteController } from "./ui/autocomplete";
@@ -36,8 +30,14 @@ let selectedCellKeys = new Set<string>();
 let contextCell: CellPosition | null = null;
 let copiedCell: CopiedCell | null = null;
 let arrowDraft: ArrowDraft = { from: null };
+let arrowHoverTarget: CellPosition | null = null;
 let expandDraft: ExpandDraft = { from: null };
 let saveTimer = 0;
+
+const minInstructionColumnWidth = 320;
+const maxInstructionColumnWidth = 520;
+// Keep the native horizontal scrollbar attached to the table when the row content is shorter than the workspace.
+const nativeScrollbarReserve = 18;
 
 function render(): void {
   elements.titleInput.value = state.title;
@@ -49,26 +49,39 @@ function render(): void {
 }
 
 function renderTable(): void {
-  const table = document.createElement("table");
-  table.className = "pipeline-table";
+  const instructionTable = document.createElement("table");
+  instructionTable.className = "pipeline-table instruction-table";
 
-  const thead = document.createElement("thead");
-  const headRow = document.createElement("tr");
-  headRow.appendChild(makeHeader("Instruction", "instruction-col"));
+  const instructionHead = document.createElement("thead");
+  const instructionHeadRow = document.createElement("tr");
+  instructionHeadRow.appendChild(makeHeader("Instruction", "instruction-col"));
+  instructionHead.appendChild(instructionHeadRow);
+  instructionTable.appendChild(instructionHead);
+
+  const instructionBody = document.createElement("tbody");
+  instructionTable.appendChild(instructionBody);
+
+  const cycleTable = document.createElement("table");
+  cycleTable.className = "pipeline-table cycle-table";
+
+  const cycleHead = document.createElement("thead");
+  const cycleHeadRow = document.createElement("tr");
   for (let cycle = 1; cycle <= state.cycles; cycle += 1) {
-    headRow.appendChild(makeHeader(String(cycle), "cycle-col"));
+    cycleHeadRow.appendChild(makeHeader(String(cycle), "cycle-col"));
   }
-  thead.appendChild(headRow);
-  table.appendChild(thead);
+  cycleHead.appendChild(cycleHeadRow);
+  cycleTable.appendChild(cycleHead);
 
-  const tbody = document.createElement("tbody");
+  const cycleBody = document.createElement("tbody");
   state.rows.forEach((row, rowIndex) => {
-    const tr = document.createElement("tr");
+    const instructionTr = document.createElement("tr");
     const instructionTd = document.createElement("td");
     instructionTd.className = "instruction-col";
     instructionTd.appendChild(makeInstructionEditor(row.instruction, rowIndex));
-    tr.appendChild(instructionTd);
+    instructionTr.appendChild(instructionTd);
+    instructionBody.appendChild(instructionTr);
 
+    const cycleTr = document.createElement("tr");
     row.cells.forEach((cell, cycleIndex) => {
       const td = document.createElement("td");
       td.className = "cycle-col";
@@ -83,17 +96,29 @@ function renderTable(): void {
       input.addEventListener("focus", onCellFocus);
       input.addEventListener("keydown", onCellKeyDown);
       input.addEventListener("click", onCellClick);
+      input.addEventListener("mouseenter", onCellMouseEnter);
+      input.addEventListener("mouseleave", onCellMouseLeave);
       input.addEventListener("contextmenu", onCellContextMenu);
       input.addEventListener("blur", () => window.setTimeout(hideAutocompleteIfFocusLeftCells, 120));
       td.appendChild(input);
-      tr.appendChild(td);
+      cycleTr.appendChild(td);
     });
 
-    tbody.appendChild(tr);
+    cycleBody.appendChild(cycleTr);
   });
 
-  table.appendChild(tbody);
-  elements.tableMount.replaceChildren(table, makeAddRowZone());
+  cycleTable.appendChild(cycleBody);
+  elements.instructionMount.replaceChildren(instructionTable, makeAddRowZone());
+  elements.tableMount.replaceChildren(cycleTable);
+  updateInstructionColumnWidth();
+  syncTableRowHeights();
+  updateCycleViewportOverflow();
+  syncInstructionScroll();
+  window.requestAnimationFrame(() => {
+    syncTableRowHeights();
+    updateCycleViewportOverflow();
+    drawArrows();
+  });
 }
 
 function makeHeader(text: string, className: string): HTMLTableCellElement {
@@ -122,6 +147,8 @@ function makeInstructionEditor(instruction: string, rowIndex: number): HTMLEleme
     state.rows[rowIndex].instruction = input.value;
     elements.instructionsInput.value = state.rows.map((item) => item.instruction).join("\n");
     renderAssemblyHighlight(highlight, input.value);
+    updateInstructionColumnWidth();
+    syncTableRowHeights();
     scheduleSave();
     window.requestAnimationFrame(drawArrows);
   });
@@ -146,6 +173,16 @@ function makeRowButton(text: string, onClick: () => void, extraClass = ""): HTML
   button.textContent = text;
   button.addEventListener("click", onClick);
   return button;
+}
+
+function updateInstructionColumnWidth(): void {
+  const longestText = Math.max(
+    0,
+    ...[...elements.instructionMount.querySelectorAll<HTMLElement>(".assembly-highlight")].map((item) => item.scrollWidth)
+  );
+  const buttonAreaWidth = 3 * 34 + 2 * 7 + 12 + 20;
+  const nextWidth = Math.min(maxInstructionColumnWidth, Math.max(minInstructionColumnWidth, longestText + buttonAreaWidth));
+  elements.tableShell.style.setProperty("--instruction-col-width", `${Math.ceil(nextWidth)}px`);
 }
 
 function makeAddRowZone(): HTMLElement {
@@ -180,6 +217,15 @@ function getCellClassForPosition(text: string, struck: boolean, row: number, cyc
   if (isMultiSelection() && selectedCellKeys.has(positionKey({ row, cycle }))) classes.push("multi-selected");
   if (arrowDraft.from && arrowDraft.from.row === row && arrowDraft.from.cycle === cycle) {
     classes.push("arrow-from");
+  }
+  if (
+    arrowDraft.from &&
+    arrowHoverTarget &&
+    arrowHoverTarget.row === row &&
+    arrowHoverTarget.cycle === cycle &&
+    isValidArrowTarget(arrowDraft.from, arrowHoverTarget, state)
+  ) {
+    classes.push("arrow-target-valid");
   }
   if (expandDraft.from && expandDraft.from.row === row && expandDraft.from.cycle === cycle) {
     classes.push("expand-from");
@@ -225,7 +271,7 @@ function onCellClick(event: MouseEvent): void {
     tryExpandTo(selectedCell);
     return;
   }
-  if (arrowDraft.from && !samePos(arrowDraft.from, selectedCell)) {
+  if (arrowDraft.from) {
     tryCreateArrowTo(selectedCell);
     return;
   }
@@ -236,6 +282,21 @@ function onCellClick(event: MouseEvent): void {
     return;
   }
   autocomplete.show(input, selectedCell, state);
+}
+
+function onCellMouseEnter(event: MouseEvent): void {
+  if (!arrowDraft.from) return;
+  arrowHoverTarget = getInputPosition(event.currentTarget as HTMLInputElement);
+  refreshCellClasses();
+}
+
+function onCellMouseLeave(event: MouseEvent): void {
+  if (!arrowHoverTarget) return;
+  const pos = getInputPosition(event.currentTarget as HTMLInputElement);
+  if (samePos(arrowHoverTarget, pos)) {
+    arrowHoverTarget = null;
+    refreshCellClasses();
+  }
 }
 
 function onCellContextMenu(event: MouseEvent): void {
@@ -444,7 +505,7 @@ function applyInstructions(): void {
   state.arrows = state.arrows.filter((arrow) => arrow.from.row < state.rows.length && arrow.to.row < state.rows.length);
   selectedCell = null;
   clearSelection();
-  arrowDraft = { from: null };
+  cancelArrowDraft();
   expandDraft = { from: null };
   render();
   scheduleSave();
@@ -499,7 +560,7 @@ function moveRow(rowIndex: number, direction: number): void {
       from: remapMovedRow(arrow.from, rowIndex, target),
       to: remapMovedRow(arrow.to, rowIndex, target)
     }))
-    .filter((arrow) => isValidArrowTarget(arrow.from, arrow.to, state));
+    .filter((arrow) => isValidArrowTarget(arrow.from, arrow.to, state, arrow));
   render();
   scheduleSave();
 }
@@ -578,13 +639,14 @@ function startArrow(pos: CellPosition): void {
   if (state.rows[pos.row].cells[pos.cycle].struck) return;
   expandDraft = { from: null };
   arrowDraft = { from: { ...pos } };
+  arrowHoverTarget = null;
   refreshCellClasses();
   renderSelectionInfo();
 }
 
 function startExpand(pos: CellPosition): void {
   if (!canStartExpand(pos)) return;
-  arrowDraft = { from: null };
+  cancelArrowDraft();
   expandDraft = { from: { ...pos } };
   refreshCellClasses();
   renderSelectionInfo();
@@ -600,12 +662,15 @@ function removeArrowsFrom(pos: CellPosition): void {
 function tryCreateArrowTo(to: CellPosition): void {
   const from = arrowDraft.from;
   if (!from) return;
+  autocomplete.hide();
   if (state.rows[from.row].cells[from.cycle].struck) {
-    arrowDraft = { from: null };
+    cancelArrowDraft();
     refreshCellClasses();
     return;
   }
   if (!isValidArrowTarget(from, to, state)) {
+    cancelArrowDraft();
+    refreshCellClasses();
     showStatus("Invalid target");
     window.setTimeout(() => {
       showStatus("");
@@ -613,9 +678,14 @@ function tryCreateArrowTo(to: CellPosition): void {
     return;
   }
   state.arrows.push({ from: { ...from }, to: { ...to }, label: "" });
-  arrowDraft = { from: null };
+  cancelArrowDraft();
   render();
   scheduleSave();
+}
+
+function cancelArrowDraft(): void {
+  arrowDraft = { from: null };
+  arrowHoverTarget = null;
 }
 
 function tryExpandTo(to: CellPosition): void {
@@ -667,7 +737,7 @@ function removeArrow(index: number): void {
 }
 
 function drawArrows(): void {
-  drawArrowLayer(elements.tableShell, elements.arrowLayer, state, getCellElement, removeArrow);
+  drawArrowLayer(elements.cycleViewport, elements.arrowLayer, state, getCellElement, removeArrow);
 }
 
 function getCellElement(pos: CellPosition): HTMLInputElement | null {
@@ -741,7 +811,7 @@ function importJson(): void {
     pruneArrowsFromStruckCells();
     selectedCell = null;
     clearSelection();
-    arrowDraft = { from: null };
+    cancelArrowDraft();
     expandDraft = { from: null };
     render();
     saveState(true);
@@ -766,7 +836,7 @@ function clearAll(): void {
   state = createDefaultState();
   selectedCell = null;
   clearSelection();
-  arrowDraft = { from: null };
+  cancelArrowDraft();
   expandDraft = { from: null };
   render();
   saveState(true);
@@ -805,7 +875,7 @@ function showStatus(message: string): void {
 }
 
 function cancelTransientUi(): void {
-  arrowDraft = { from: null };
+  cancelArrowDraft();
   expandDraft = { from: null };
   hideContextMenu();
   autocomplete.hide();
@@ -832,7 +902,6 @@ elements.exportMenu.addEventListener("click", (event) => {
 });
 elements.copyExportBtn.addEventListener("click", copyExport);
 elements.importBtn.addEventListener("click", importJson);
-elements.saveBtn.addEventListener("click", () => saveState(true));
 elements.clearBtn.addEventListener("click", clearAll);
 elements.collapseSidebarBtn.addEventListener("click", () => {
   elements.layoutRoot.classList.add("sidebar-collapsed");
@@ -865,9 +934,77 @@ document.addEventListener("keydown", (event) => {
   }
   if (event.key === "Escape") cancelTransientUi();
 });
-elements.tableShell.addEventListener("scroll", drawArrows);
-window.addEventListener("resize", drawArrows);
+function syncInstructionScroll(): void {
+  elements.instructionMount.scrollTop = elements.cycleViewport.scrollTop;
+}
 
+function syncTableRowHeights(): void {
+  const instructionHead = elements.instructionMount.querySelector<HTMLTableRowElement>(".instruction-table thead tr");
+  const cycleHead = elements.tableMount.querySelector<HTMLTableRowElement>(".cycle-table thead tr");
+  syncElementPairHeight(instructionHead, cycleHead);
+
+  const instructionRows = elements.instructionMount.querySelectorAll<HTMLTableRowElement>(".instruction-table tbody tr");
+  const cycleRows = elements.tableMount.querySelectorAll<HTMLTableRowElement>(".cycle-table tbody tr");
+  instructionRows.forEach((instructionRow, index) => {
+    syncElementPairHeight(instructionRow, cycleRows[index] || null);
+  });
+}
+
+function updateCycleViewportOverflow(): void {
+  const viewport = elements.cycleViewport;
+  const cycleTable = elements.tableMount.querySelector<HTMLElement>(".cycle-table");
+  const contentHeight = cycleTable?.getBoundingClientRect().height || 0;
+  const availableHeight = elements.tableShell.clientHeight;
+  const desiredHeight = Math.ceil(contentHeight + nativeScrollbarReserve);
+  const shouldScrollVertically = desiredHeight > availableHeight + 1;
+
+  viewport.style.height = shouldScrollVertically ? `${Math.max(0, availableHeight)}px` : `${desiredHeight}px`;
+  viewport.classList.toggle("has-vertical-overflow", shouldScrollVertically);
+}
+
+function syncElementPairHeight(first: HTMLElement | null, second: HTMLElement | null): void {
+  if (!first || !second) return;
+  first.style.height = "";
+  second.style.height = "";
+  const height = Math.max(first.getBoundingClientRect().height, second.getBoundingClientRect().height);
+  first.style.height = `${height}px`;
+  second.style.height = `${height}px`;
+}
+
+elements.cycleViewport.addEventListener("scroll", () => {
+  syncInstructionScroll();
+  drawArrows();
+});
+window.addEventListener("resize", () => {
+  syncTableRowHeights();
+  updateCycleViewportOverflow();
+  drawArrows();
+});
+
+function attachTextareaResizeHandles(): void {
+  document.querySelectorAll<HTMLElement>(".textarea-resize-handle").forEach((handle) => {
+    const textarea = handle.previousElementSibling;
+    if (!(textarea instanceof HTMLTextAreaElement)) return;
+    let drag: { startY: number; startHeight: number } | null = null;
+    handle.addEventListener("pointerdown", (event) => {
+      drag = { startY: event.clientY, startHeight: textarea.getBoundingClientRect().height };
+      handle.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+    handle.addEventListener("pointermove", (event) => {
+      if (!drag) return;
+      textarea.style.height = `${Math.max(80, drag.startHeight + event.clientY - drag.startY)}px`;
+    });
+    handle.addEventListener("pointerup", () => {
+      drag = null;
+    });
+    handle.addEventListener("pointercancel", () => {
+      drag = null;
+    });
+  });
+}
+
+attachTextareaResizeHandles();
 pruneArrowsFromStruckCells();
 render();
 saveState(false);

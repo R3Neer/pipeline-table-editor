@@ -14,10 +14,11 @@ export function getAppElements(): AppElements {
     copyExportBtn: byId("copyExportBtn", HTMLButtonElement),
     importInput: byId("importInput", HTMLTextAreaElement),
     importBtn: byId("importBtn", HTMLButtonElement),
-    saveBtn: byId("saveBtn", HTMLButtonElement),
     clearBtn: byId("clearBtn", HTMLButtonElement),
     saveStatus: byId("saveStatus", HTMLElement),
     tableShell: byId("tableShell", HTMLElement),
+    instructionMount: byId("instructionMount", HTMLElement),
+    cycleViewport: byId("cycleViewport", HTMLElement),
     tableMount: byId("tableMount", HTMLElement),
     arrowLayer: byId("arrowLayer", SVGSVGElement),
     exportModal: byId("exportModal", HTMLElement),
@@ -58,7 +59,7 @@ function appendAssemblyToken(target: HTMLElement, text: string, className: strin
 function byId<T extends Element>(id: string, ctor: { new (...args: never[]): T }): T {
   const element = document.getElementById(id);
   if (!(element instanceof ctor)) {
-    throw new Error(`Elemento #${id} no encontrado o con tipo inesperado`);
+    throw new Error(`Element #${id} was not found or has an unexpected type`);
   }
   return element;
 }

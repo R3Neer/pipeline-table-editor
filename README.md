@@ -49,8 +49,8 @@ The output is written to `dist/` and can be published to GitHub Pages.
 - `OPEN_PIPELINE_EDITOR.bat`: launcher for opening the app with a double click on Windows.
 - `app/`: web app source code, Vite configuration, and tests.
   - `app/src/main.ts`: application entry point and event wiring.
-  - `app/src/core/`: data model, state normalization, stage parsing, validation, selection, and expansion rules.
-  - `app/src/ui/`: DOM helpers, autocomplete UI, arrow drawing, and download helpers.
+  - `app/src/core/`: data model, state normalization, stage parsing, validation, autocomplete, arrow, selection, and expansion rules.
+  - `app/src/ui/`: DOM helpers, autocomplete menu rendering, arrow drawing, and download helpers.
   - `app/src/export/`: Markdown/text/JSON and PNG export code.
   - `app/src/styles.css`: application styles.
   - `app/tests/`: browser smoke tests.
@@ -65,6 +65,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run build`: TypeScript check and static build.
 - `npm run preview`: previews `dist/`.
 - `npm run screenshots`: regenerates documentation screenshots.
+- `npm run test:unit`: fast unit tests for domain rules.
 - `npm run test:smoke`: browser smoke test.
 
 ## Cell Format

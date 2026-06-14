@@ -6,18 +6,15 @@
     <title>Pipeline Table Editor</title>
   </head>
   <body>
-    <header class="app-header">
-      <div>
-        <h1>Pipeline Table Editor</h1>
-        <p>Instruction-time tables for pipelined processors</p>
-      </div>
-      <div class="status" id="saveStatus" aria-live="polite"></div>
-    </header>
+    <div class="status" id="saveStatus" aria-live="polite"></div>
 
     <main class="layout" id="layoutRoot">
-      <section class="controls" aria-label="Controles">
+      <section class="controls" aria-label="Controls">
         <div class="sidebar-head">
-          <span>Panel</span>
+          <div class="sidebar-brand">
+            <h1>Pipeline Table Editor</h1>
+            <p>Instruction-time tables for pipelined processors</p>
+          </div>
           <button id="collapseSidebarBtn" type="button" class="icon-button" title="Hide panel" aria-label="Hide panel">▱</button>
         </div>
 
@@ -33,7 +30,10 @@
 
         <div class="field instructions-field">
           <label for="instructionsInput">Instructions</label>
-          <textarea id="instructionsInput" rows="7" spellcheck="false" placeholder="flw f10, 0(x1)&#10;fmul.s f4, f0, f10"></textarea>
+          <div class="textarea-resize-wrap">
+            <textarea id="instructionsInput" rows="7" spellcheck="false" placeholder="flw f10, 0(x1)&#10;fmul.s f4, f0, f10"></textarea>
+            <span class="textarea-resize-handle" aria-hidden="true"></span>
+          </div>
         </div>
 
         <div class="export-control">
@@ -48,20 +48,27 @@
 
         <div class="field">
           <label for="importInput">Import JSON</label>
-          <textarea id="importInput" rows="5" spellcheck="false" placeholder='{"title":"Exercise 1",...}'></textarea>
+          <div class="textarea-resize-wrap">
+            <textarea id="importInput" rows="5" spellcheck="false" placeholder='{"title":"Exercise 1",...}'></textarea>
+            <span class="textarea-resize-handle" aria-hidden="true"></span>
+          </div>
         </div>
 
         <div class="button-row">
           <button id="importBtn" type="button">Load JSON</button>
-          <button id="saveBtn" type="button">Save</button>
           <button id="clearBtn" type="button" class="danger">Clear</button>
         </div>
       </section>
 
       <section class="workspace" aria-label="Editable table">
         <div class="table-shell" id="tableShell">
-          <svg id="arrowLayer" class="arrow-layer" aria-hidden="true"></svg>
-          <div id="tableMount"></div>
+          <div id="instructionMount" class="instruction-pane"></div>
+          <div id="cycleViewport" class="cycle-viewport">
+            <div class="cycle-canvas">
+              <svg id="arrowLayer" class="arrow-layer" aria-hidden="true"></svg>
+              <div id="tableMount"></div>
+            </div>
+          </div>
         </div>
 
       </section>
@@ -93,7 +100,10 @@
           <h2 id="exportTitle">Output</h2>
           <button id="closeExportBtn" type="button" class="ghost-button">Close</button>
         </div>
-        <textarea id="exportOutput" rows="14" spellcheck="false" readonly></textarea>
+        <div class="textarea-resize-wrap">
+          <textarea id="exportOutput" rows="14" spellcheck="false" readonly></textarea>
+          <span class="textarea-resize-handle" aria-hidden="true"></span>
+        </div>
         <div class="modal-actions">
           <button id="copyExportBtn" type="button">Copy output</button>
         </div>

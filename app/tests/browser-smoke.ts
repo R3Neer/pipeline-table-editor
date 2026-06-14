@@ -47,11 +47,26 @@ try {
     "fadd.s f2, f12, f4"
   ].join("\n"));
   await page.waitForSelector('.stage-input[data-row="2"][data-cycle="0"]');
+  await page.fill("#cyclesInput", "25");
+  await page.locator("#cyclesInput").dispatchEvent("change");
+  await expectCycleViewportScrollsHorizontally(page);
+  await expectInstructionAndCycleRowsAligned(page);
+  await expectCycleViewportHasNoUnneededVerticalScroll(page);
+  await expectInstructionAndCyclePanesTouch(page);
+  await expectInstructionButtonsHaveBreathingRoom(page);
+  await expectInstructionButtonsDoNotOverlap(page);
+  await expectCustomScrollbarTheme(page);
+  await page.fill("#cyclesInput", "6");
+  await page.locator("#cyclesInput").dispatchEvent("change");
+  await page.waitForSelector('.stage-input[data-row="2"][data-cycle="5"]');
   assert.equal(await page.locator(".asm-token-instruction").first().textContent(), "flw");
   assert.deepEqual(
-    await page.locator("tbody tr:first-child .asm-token-register").evaluateAll((items) => items.map((item) => item.textContent)),
+    await page
+      .locator("tbody tr:first-child .instruction-cell .asm-token-register")
+      .evaluateAll((items) => items.map((item) => item.textContent)),
     ["f10", "x1"]
   );
+  await expectCustomTextareaResizeHandle(page);
 
   assert.equal(await page.locator("#exportJsonBtn").count(), 0);
   assert.equal(await page.locator("#exportMarkdownBtn").count(), 0);
@@ -378,7 +393,25 @@ try {
 
   await cell(page, 0, 2).click({ button: "right" });
   await page.locator('#cellMenu [data-action="arrow"]').click();
+  await cell(page, 1, 4).hover();
+  await expectClass(page, 1, 4, "arrow-target-valid");
+  await expectArrowHoverUsesArrowColor(page, 1, 4);
+  await cell(page, 0, 1).hover();
+  await expectNoClass(page, 0, 1, "arrow-target-valid");
+  await cell(page, 0, 1).click();
+  await expectNoClass(page, 0, 2, "arrow-from");
+  assert.equal(await page.locator("#arrowLayer path.arrow-path").count(), 0);
+
+  await cell(page, 0, 2).click({ button: "right" });
+  await page.locator('#cellMenu [data-action="arrow"]').click();
   await cell(page, 1, 4).click();
+  assert.equal(await page.locator("#arrowLayer path.arrow-path").count(), 1);
+  await cell(page, 0, 3).click({ button: "right" });
+  await page.locator('#cellMenu [data-action="arrow"]').click();
+  await cell(page, 1, 4).hover();
+  await expectNoClass(page, 1, 4, "arrow-target-valid");
+  await cell(page, 1, 4).click();
+  await expectNoClass(page, 0, 3, "arrow-from");
   assert.equal(await page.locator("#arrowLayer path.arrow-path").count(), 1);
   await cell(page, 0, 2).click({ button: "right" });
   await page.locator("#cellMenu").getByText("Strike").click();
@@ -479,6 +512,177 @@ async function expectOpacity(page: Page, selector: string, expected: string) {
     ({ selector, expected }) => getComputedStyle(document.querySelector(selector)).opacity === expected,
     { selector, expected }
   );
+}
+
+async function expectCycleViewportScrollsHorizontally(page: Page) {
+  const result = await page.evaluate(() => {
+    const viewport = document.querySelector("#cycleViewport");
+    const instruction = document.querySelector(".instruction-cell");
+    const firstCycle = document.querySelector('.stage-input[data-row="0"][data-cycle="0"]');
+    if (!(viewport instanceof HTMLElement) || !(instruction instanceof HTMLElement) || !(firstCycle instanceof HTMLElement)) {
+      return null;
+    }
+
+    const instructionLeftBefore = instruction.getBoundingClientRect().left;
+    const cycleLeftBefore = firstCycle.getBoundingClientRect().left;
+    viewport.scrollLeft = 240;
+    const instructionLeftAfter = instruction.getBoundingClientRect().left;
+    const cycleLeftAfter = firstCycle.getBoundingClientRect().left;
+
+    return {
+      scrollLeft: viewport.scrollLeft,
+      canScroll: viewport.scrollWidth > viewport.clientWidth,
+      instructionDelta: Math.round(instructionLeftAfter - instructionLeftBefore),
+      cycleDelta: Math.round(cycleLeftAfter - cycleLeftBefore)
+    };
+  });
+
+  assert.ok(result);
+  assert.equal(result.canScroll, true);
+  assert.ok(result.scrollLeft > 0);
+  assert.equal(result.instructionDelta, 0);
+  assert.ok(result.cycleDelta < 0);
+}
+
+async function expectInstructionAndCycleRowsAligned(page: Page) {
+  const result = await page.evaluate(() => {
+    const instructionRows = [...document.querySelectorAll(".instruction-table tbody tr")];
+    const cycleRows = [...document.querySelectorAll(".cycle-table tbody tr")];
+    return instructionRows.map((row, index) => {
+      const cycleRow = cycleRows[index];
+      const rowRect = row.getBoundingClientRect();
+      const cycleRect = cycleRow.getBoundingClientRect();
+      return {
+        topDelta: Math.abs(rowRect.top - cycleRect.top),
+        heightDelta: Math.abs(rowRect.height - cycleRect.height)
+      };
+    });
+  });
+
+  assert.ok(result.length > 0);
+  result.forEach(({ topDelta, heightDelta }) => {
+    assert.ok(topDelta <= 1);
+    assert.ok(heightDelta <= 1);
+  });
+}
+
+async function expectCycleViewportHasNoUnneededVerticalScroll(page: Page) {
+  const result = await page.evaluate(() => {
+    const viewport = document.querySelector("#cycleViewport");
+    if (!(viewport instanceof HTMLElement)) return null;
+    return {
+      clientHeight: viewport.clientHeight,
+      scrollHeight: viewport.scrollHeight,
+      hasVerticalOverflow: viewport.classList.contains("has-vertical-overflow")
+    };
+  });
+
+  assert.ok(result);
+  assert.ok(result.scrollHeight <= result.clientHeight + 1);
+  assert.equal(result.hasVerticalOverflow, false);
+}
+
+async function expectInstructionAndCyclePanesTouch(page: Page) {
+  const result = await page.evaluate(() => {
+    const instructionPane = document.querySelector("#instructionMount");
+    const cycleViewport = document.querySelector("#cycleViewport");
+    if (!(instructionPane instanceof HTMLElement) || !(cycleViewport instanceof HTMLElement)) return null;
+    return Math.abs(instructionPane.getBoundingClientRect().right - cycleViewport.getBoundingClientRect().left);
+  });
+
+  assert.ok(result !== null);
+  assert.ok(result <= 1);
+}
+
+async function expectArrowHoverUsesArrowColor(page: Page, row: number, cycle: number) {
+  await page.waitForFunction(
+    ({ row, cycle }) => {
+      const input = document.querySelector(`.stage-input[data-row="${row}"][data-cycle="${cycle}"]`);
+      if (!(input instanceof HTMLElement)) return false;
+      const probe = document.createElement("span");
+      probe.style.color = getComputedStyle(document.documentElement).getPropertyValue("--accent");
+      document.body.appendChild(probe);
+      const accent = getComputedStyle(probe).color;
+      probe.remove();
+      return getComputedStyle(input).borderColor === accent;
+    },
+    { row, cycle }
+  );
+}
+
+async function expectInstructionButtonsHaveBreathingRoom(page: Page) {
+  const result = await page.evaluate(() => {
+    const editor = document.querySelector(".instruction-cell .assembly-editor");
+    const firstButton = document.querySelector(".instruction-cell .row-btn");
+    if (!(editor instanceof HTMLElement) || !(firstButton instanceof HTMLElement)) return null;
+    return firstButton.getBoundingClientRect().left - editor.getBoundingClientRect().right;
+  });
+
+  assert.ok(result !== null);
+  assert.ok(result >= 14);
+}
+
+async function expectInstructionButtonsDoNotOverlap(page: Page) {
+  const gaps = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll(".instruction-cell")];
+    return rows.map((row) => {
+      const buttons = [...row.querySelectorAll(".row-btn")].map((button) => button.getBoundingClientRect());
+      return buttons.slice(1).map((button, index) => Math.round(button.left - buttons[index].right));
+    });
+  });
+
+  gaps.flat().forEach((gap) => {
+    assert.ok(gap >= 6);
+  });
+}
+
+async function expectCustomTextareaResizeHandle(page: Page) {
+  const result = await page.evaluate(() => {
+    const textarea = document.querySelector("#instructionsInput");
+    const handle = document.querySelector(".textarea-resize-wrap .textarea-resize-handle");
+    if (!(textarea instanceof HTMLTextAreaElement) || !(handle instanceof HTMLElement)) return null;
+    return {
+      resize: getComputedStyle(textarea).resize,
+      handleWidth: handle.getBoundingClientRect().width,
+      handleHeight: handle.getBoundingClientRect().height
+    };
+  });
+
+  assert.ok(result);
+  assert.equal(result.resize, "none");
+  assert.ok(result.handleWidth >= 12);
+  assert.ok(result.handleHeight >= 12);
+}
+
+async function expectCustomScrollbarTheme(page: Page) {
+  const result = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    const probe = document.createElement("div");
+    probe.style.cssText = "width:80px;height:80px;overflow:scroll;position:absolute;left:-9999px;";
+    document.body.appendChild(probe);
+    const scrollbar = getComputedStyle(probe, "::-webkit-scrollbar");
+    const thumb = getComputedStyle(probe, "::-webkit-scrollbar-thumb");
+    const track = getComputedStyle(probe, "::-webkit-scrollbar-track");
+    const output = {
+      configuredTrack: root.getPropertyValue("--scrollbar-track").trim(),
+      configuredThumb: root.getPropertyValue("--scrollbar-thumb").trim(),
+      width: scrollbar.width,
+      height: scrollbar.height,
+      thumbRadius: thumb.borderRadius,
+      thumbBackground: thumb.backgroundColor,
+      trackBackground: track.backgroundColor
+    };
+    probe.remove();
+    return output;
+  });
+
+  assert.notEqual(result.configuredTrack, "");
+  assert.notEqual(result.configuredThumb, "");
+  assert.equal(result.width, "16px");
+  assert.equal(result.height, "16px");
+  assert.notEqual(result.thumbRadius, "0px");
+  assert.notEqual(result.thumbBackground, "rgba(0, 0, 0, 0)");
+  assert.notEqual(result.trackBackground, "rgba(0, 0, 0, 0)");
 }
 
 async function assertVisibleText(page: Page, text: string) {

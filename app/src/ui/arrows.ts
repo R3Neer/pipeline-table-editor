@@ -4,33 +4,35 @@ type CellResolver = (pos: CellPosition) => HTMLInputElement | null;
 type RemoveHandler = (index: number) => void;
 
 export function drawArrows(
-  tableShell: HTMLElement,
+  scrollContainer: HTMLElement,
   arrowLayer: SVGSVGElement,
   state: AppState,
   getCellElement: CellResolver,
   onRemove: RemoveHandler
 ): void {
-  const shellRect = tableShell.getBoundingClientRect();
-  const width = tableShell.scrollWidth;
-  const height = tableShell.scrollHeight;
+  const shellRect = scrollContainer.getBoundingClientRect();
+  const arrowColor = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#006c7a";
+  const width = scrollContainer.scrollWidth;
+  const height = scrollContainer.scrollHeight;
   arrowLayer.setAttribute("width", String(width));
   arrowLayer.setAttribute("height", String(height));
   arrowLayer.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  arrowLayer.replaceChildren(makeArrowDefs());
+  arrowLayer.replaceChildren(makeArrowDefs(arrowColor));
 
   state.arrows.forEach((arrow, index) => {
-    appendArrowPath(tableShell, arrowLayer, shellRect, arrow, index, getCellElement, onRemove);
+    appendArrowPath(scrollContainer, arrowLayer, shellRect, arrow, index, getCellElement, onRemove, arrowColor);
   });
 }
 
 function appendArrowPath(
-  tableShell: HTMLElement,
+  scrollContainer: HTMLElement,
   arrowLayer: SVGSVGElement,
   shellRect: DOMRect,
   arrow: PipelineArrow,
   index: number,
   getCellElement: CellResolver,
-  onRemove: RemoveHandler
+  onRemove: RemoveHandler,
+  arrowColor: string
 ): void {
   const fromEl = getCellElement(arrow.from);
   const toEl = getCellElement(arrow.to);
@@ -38,10 +40,10 @@ function appendArrowPath(
 
   const fromRect = fromEl.getBoundingClientRect();
   const toRect = toEl.getBoundingClientRect();
-  const x1 = fromRect.left - shellRect.left + tableShell.scrollLeft + fromRect.width / 2;
-  const y1 = fromRect.top - shellRect.top + tableShell.scrollTop + fromRect.height / 2;
-  const x2 = toRect.left - shellRect.left + tableShell.scrollLeft + toRect.width / 2;
-  const y2 = toRect.top - shellRect.top + tableShell.scrollTop + toRect.height / 2;
+  const x1 = fromRect.left - shellRect.left + scrollContainer.scrollLeft + fromRect.width / 2;
+  const y1 = fromRect.top - shellRect.top + scrollContainer.scrollTop + fromRect.height / 2;
+  const x2 = toRect.left - shellRect.left + scrollContainer.scrollLeft + toRect.width / 2;
+  const y2 = toRect.top - shellRect.top + scrollContainer.scrollTop + toRect.height / 2;
   const midX = (x1 + x2) / 2;
 
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -49,7 +51,7 @@ function appendArrowPath(
   path.dataset.arrowIndex = String(index);
   path.setAttribute("d", `M ${x1} ${y1} C ${midX} ${y1 - 34}, ${midX} ${y2 - 34}, ${x2} ${y2}`);
   path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "#006c7a");
+  path.setAttribute("stroke", arrowColor);
   path.setAttribute("stroke-width", "2.5");
   path.setAttribute("marker-end", "url(#arrowHead)");
   path.addEventListener("click", (event) => {
@@ -71,7 +73,7 @@ function appendArrowPath(
   }
 }
 
-function makeArrowDefs(): SVGDefsElement {
+function makeArrowDefs(arrowColor: string): SVGDefsElement {
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
   const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
   marker.setAttribute("id", "arrowHead");
@@ -83,7 +85,7 @@ function makeArrowDefs(): SVGDefsElement {
 
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", "M 0 0 L 8 3 L 0 6 z");
-  path.setAttribute("fill", "#006c7a");
+  path.setAttribute("fill", arrowColor);
   marker.appendChild(path);
   defs.appendChild(marker);
   return defs;
