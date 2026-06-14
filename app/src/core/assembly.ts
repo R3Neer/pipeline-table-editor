@@ -1,9 +1,11 @@
 export interface AssemblyToken {
   text: string;
-  kind: "instruction" | "register" | "plain";
+  kind: "instruction" | "register" | "plain" | "annotation";
 }
 
 export function tokenizeAssembly(text: string): AssemblyToken[] {
+  if (/^\s*<[^<>]+>\s*$/.test(text)) return [{ text, kind: "annotation" }];
+
   const firstWord = text.match(/\S+/);
   if (!firstWord) return text ? [{ text, kind: "plain" }] : [];
 

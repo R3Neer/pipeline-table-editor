@@ -52,6 +52,7 @@ try {
   await expectCycleViewportScrollsHorizontally(page);
   await expectInstructionAndCycleRowsAligned(page);
   await expectCycleViewportHasNoUnneededVerticalScroll(page);
+  await expectCycleViewportHasBottomBreathingRoomWhenFull(page);
   await expectInstructionAndCyclePanesTouch(page);
   await expectInstructionButtonsHaveBreathingRoom(page);
   await expectInstructionButtonsDoNotOverlap(page);
@@ -66,7 +67,42 @@ try {
       .evaluateAll((items) => items.map((item) => item.textContent)),
     ["f10", "x1"]
   );
+  await expectAssemblyOverlayUsesInputMetrics(page);
   await expectCustomTextareaResizeHandle(page);
+  await expectFloatingMenusStayInsideViewport(page);
+
+  await instructionRow(page, 1).click({ button: "right" });
+  await page.locator('#rowMenu [data-row-action="edit-label"]').getByText("Add label").waitFor({ state: "visible" });
+  await page.locator('#rowMenu [data-row-action="edit-label"]').click();
+  await page.waitForSelector("#labelModal:not([aria-hidden='true'])");
+  await page.fill("#labelInput", "loop");
+  await page.click("#saveLabelBtn");
+  await page.getByText("loop:").first().waitFor({ state: "visible" });
+  await expectRowLabelStyle(page, "loop:");
+  await instructionRow(page, 1).click({ button: "right" });
+  await page.locator('#rowMenu [data-row-action="edit-label"]').getByText("Edit label").waitFor({ state: "visible" });
+  await page.locator('#rowMenu [data-row-action="edit-label"]').click();
+  await page.waitForSelector("#labelModal:not([aria-hidden='true'])");
+  assert.equal(await page.locator("#labelModalTitle").textContent(), "Edit label");
+  assert.equal(await page.inputValue("#labelInput"), "loop");
+  await page.click("#cancelLabelBtn");
+  await page.keyboard.press("Escape");
+  await instructionRow(page, 1).click({ button: "right" });
+  await page.locator('#rowMenu [data-row-action="toggle-separator"]').click();
+  await page.waitForSelector(".instruction-table tbody tr:nth-child(2).row-separator");
+  await page.waitForSelector(".cycle-table tbody tr:nth-child(2).row-separator");
+  await instructionRow(page, 1).click({ button: "right" });
+  await page.locator('#rowMenu [data-row-action="remove-label"]').click();
+  await page.waitForFunction(() => ![...document.querySelectorAll(".row-label")].some((item) => item.textContent === "loop"));
+  await instructionRow(page, 1).click({ button: "right" });
+  await clickRowEditAction(page, "copy");
+  await instructionRow(page, 2).click({ button: "right" });
+  await clickRowEditAction(page, "paste");
+  await expectInstructionValue(page, 2, "fmul.s f4, f0, f10");
+  await instructionRow(page, 2).click({ button: "right" });
+  await clickRowEditAction(page, "clear");
+  await expectInstructionValue(page, 2, "");
+  await page.fill('.assembly-input[data-row="2"]', "fadd.s f2, f12, f4");
 
   assert.equal(await page.locator("#exportJsonBtn").count(), 0);
   assert.equal(await page.locator("#exportMarkdownBtn").count(), 0);
@@ -82,6 +118,18 @@ try {
   await page.waitForSelector('.stage-input[data-row="3"][data-cycle="0"]');
   await page.click('tbody tr:nth-child(4) .row-delete-button');
   await page.waitForFunction(() => !document.querySelector('.stage-input[data-row="3"][data-cycle="0"]'));
+  await instructionRow(page, 0).click();
+  await instructionRow(page, 1).click({ modifiers: ["Shift"] });
+  await page.locator("#autocompleteMenu").waitFor({ state: "hidden" });
+  await expectInstructionRowSelected(page, 0);
+  await expectInstructionRowSelected(page, 1);
+  await instructionRow(page, 0).click({ button: "right" });
+  await page.locator('#rowMenu [data-row-action="edit-label"]').waitFor({ state: "hidden" });
+  await page.locator('#rowMenu [data-row-action="toggle-separator"]').waitFor({ state: "hidden" });
+  await page.locator('#rowMenu [data-row-action="copy"]').waitFor({ state: "hidden" });
+  await page.locator('#rowMenu [data-row-action="cut"]').waitFor({ state: "hidden" });
+  await page.keyboard.press("Escape");
+  await cell(page, 0, 0).click();
 
   await fillCell(page, 0, 0, "if");
   assert.equal(await cell(page, 0, 0).inputValue(), "IF");
@@ -501,6 +549,10 @@ function cell(page: Page, row: number, cycle: number) {
   return page.locator(`.stage-input[data-row="${row}"][data-cycle="${cycle}"]`);
 }
 
+function instructionRow(page: Page, row: number) {
+  return page.locator(`.instruction-table tbody tr:nth-child(${row + 1}) .instruction-cell`);
+}
+
 async function expectClass(page: Page, row: number, cycle: number, className: string) {
   await page.waitForFunction(
     ({ row, cycle, className }) => {
@@ -596,6 +648,86 @@ async function expectCycleViewportHasNoUnneededVerticalScroll(page: Page) {
   assert.equal(result.hasVerticalOverflow, false);
 }
 
+async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Page) {
+  const originalInstructions = [
+    "flw f10, 0(x1)",
+    "fmul.s f4, f0, f10",
+    "fadd.s f2, f12, f4"
+  ].join("\n");
+  const manyInstructions = Array.from({ length: 18 }, (_, index) => `addi x${index + 1}, x${index + 1}, ${index}`).join("\n");
+  await page.fill("#instructionsInput", manyInstructions);
+  await page.waitForSelector('.stage-input[data-row="17"][data-cycle="0"]');
+
+  const result = await page.evaluate(() => {
+    const viewport = document.querySelector("#cycleViewport");
+    const lastRow = document.querySelector(".cycle-table tbody tr:last-child");
+    const lastInstructionRow = document.querySelector(".instruction-table tbody tr:last-child");
+    if (!(viewport instanceof HTMLElement) || !(lastRow instanceof HTMLElement) || !(lastInstructionRow instanceof HTMLElement)) {
+      return null;
+    }
+    viewport.scrollTop = viewport.scrollHeight;
+    viewport.dispatchEvent(new Event("scroll"));
+    const viewportRect = viewport.getBoundingClientRect();
+    const lastRowRect = lastRow.getBoundingClientRect();
+    const lastInstructionRowRect = lastInstructionRow.getBoundingClientRect();
+    const rowHeight = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--table-row-height"));
+    const instructionRows = [...document.querySelectorAll(".instruction-table tbody tr")];
+    const cycleRows = [...document.querySelectorAll(".cycle-table tbody tr")];
+    const visibleDeltas = instructionRows.flatMap((instructionRow, index) => {
+      const cycleRow = cycleRows[index];
+      if (!cycleRow) return [];
+      const instructionRect = instructionRow.getBoundingClientRect();
+      const cycleRect = cycleRow.getBoundingClientRect();
+      const visible = cycleRect.bottom > viewportRect.top && cycleRect.top < viewportRect.bottom;
+      return visible
+        ? [
+            Math.abs(instructionRect.top - cycleRect.top),
+            Math.abs(instructionRect.bottom - cycleRect.bottom)
+          ]
+        : [];
+    });
+    return {
+      gap: viewportRect.bottom - lastRowRect.bottom,
+      hasVerticalOverflow: viewport.classList.contains("has-vertical-overflow"),
+      bottomDelta: Math.abs(lastInstructionRowRect.bottom - lastRowRect.bottom),
+      topDelta: Math.abs(lastInstructionRowRect.top - lastRowRect.top),
+      maxVisibleDelta: Math.max(0, ...visibleDeltas),
+      rowHeight
+    };
+  });
+
+  assert.ok(result);
+  assert.equal(result.hasVerticalOverflow, true);
+  assert.ok(result.gap >= result.rowHeight);
+  assert.ok(result.topDelta <= 1);
+  assert.ok(result.bottomDelta <= 1);
+  assert.ok(result.maxVisibleDelta <= 1);
+
+  await page.evaluate(() => {
+    const viewport = document.querySelector("#cycleViewport");
+    const instructionPane = document.querySelector("#instructionMount");
+    if (viewport instanceof HTMLElement) viewport.scrollTop = 0;
+    if (instructionPane instanceof HTMLElement) instructionPane.scrollTop = 0;
+  });
+  await page.locator("#instructionMount").hover({ position: { x: 20, y: 220 } });
+  await page.mouse.wheel(0, 360);
+  const syncedScroll = await page.evaluate(() => {
+    const viewport = document.querySelector("#cycleViewport");
+    const instructionPane = document.querySelector("#instructionMount");
+    if (!(viewport instanceof HTMLElement) || !(instructionPane instanceof HTMLElement)) return null;
+    return {
+      cycleScrollTop: viewport.scrollTop,
+      instructionScrollTop: instructionPane.scrollTop
+    };
+  });
+  assert.ok(syncedScroll);
+  assert.ok(syncedScroll.cycleScrollTop > 0);
+  assert.equal(Math.round(syncedScroll.instructionScrollTop), Math.round(syncedScroll.cycleScrollTop));
+
+  await page.fill("#instructionsInput", originalInstructions);
+  await page.waitForSelector('.stage-input[data-row="2"][data-cycle="0"]');
+}
+
 async function expectInstructionAndCyclePanesTouch(page: Page) {
   const result = await page.evaluate(() => {
     const instructionPane = document.querySelector("#instructionMount");
@@ -668,6 +800,63 @@ async function expectCustomTextareaResizeHandle(page: Page) {
   assert.ok(result.handleHeight >= 12);
 }
 
+async function expectAssemblyOverlayUsesInputMetrics(page: Page) {
+  const result = await page.evaluate(() => {
+    const input = document.querySelector(".instruction-cell .assembly-input");
+    const instruction = document.querySelector(".instruction-cell .asm-token-instruction");
+    const register = document.querySelector(".instruction-cell .asm-token-register");
+    if (!(input instanceof HTMLElement) || !(instruction instanceof HTMLElement) || !(register instanceof HTMLElement)) {
+      return null;
+    }
+    return {
+      inputWeight: getComputedStyle(input).fontWeight,
+      instructionWeight: getComputedStyle(instruction).fontWeight,
+      registerWeight: getComputedStyle(register).fontWeight
+    };
+  });
+
+  assert.ok(result);
+  assert.equal(result.instructionWeight, result.inputWeight);
+  assert.equal(result.registerWeight, result.inputWeight);
+}
+
+async function expectRowLabelStyle(page: Page, text: string) {
+  const result = await page
+    .locator(".row-label")
+    .filter({ hasText: text })
+    .evaluate((label) => ({
+      text: label.textContent,
+      fontStyle: getComputedStyle(label).fontStyle,
+      fontWeight: getComputedStyle(label).fontWeight
+    }));
+
+  assert.equal(result.text, text);
+  assert.equal(result.fontStyle, "italic");
+  assert.notEqual(result.fontWeight, "700");
+}
+
+async function expectInstructionValue(page: Page, row: number, expected: string) {
+  await page.waitForFunction(
+    ({ row, expected }) => {
+      const input = document.querySelector(`.assembly-input[data-row="${row}"]`);
+      return input instanceof HTMLInputElement && input.value === expected;
+    },
+    { row, expected }
+  );
+}
+
+async function expectInstructionRowSelected(page: Page, row: number) {
+  await page.waitForFunction(
+    (row) => document.querySelector(`.instruction-cell[data-row="${row}"]`)?.classList.contains("row-selected"),
+    row
+  );
+}
+
+async function clickRowEditAction(page: Page, action: string) {
+  await page.locator("#rowMenu .context-submenu-trigger").hover();
+  await page.locator(`#rowMenu [data-row-action="${action}"]`).click();
+}
+
 async function expectCustomScrollbarTheme(page: Page) {
   const result = await page.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
@@ -699,6 +888,48 @@ async function expectCustomScrollbarTheme(page: Page) {
   assert.notEqual(result.trackBackground, "rgba(0, 0, 0, 0)");
 }
 
+async function expectFloatingMenusStayInsideViewport(page: Page) {
+  await cell(page, 0, 0).evaluate((input) => {
+    input.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        clientX: window.innerWidth - 4,
+        clientY: window.innerHeight - 4
+      })
+    );
+  });
+  await expectElementWithinViewport(page, "#cellMenu");
+  await page.locator("#cellMenu .context-submenu-trigger").hover();
+  await expectElementWithinViewport(page, "#cellMenu .context-submenu-menu");
+  await page.keyboard.press("Escape");
+
+  await cell(page, 0, 0).click();
+  await page.locator("#autocompleteMenu").waitFor({ state: "visible" });
+  await expectElementWithinViewport(page, "#autocompleteMenu");
+  await page.keyboard.press("Escape");
+}
+
+async function expectElementWithinViewport(page: Page, selector: string) {
+  const result = await page.locator(selector).evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight
+    };
+  });
+
+  assert.ok(result.left >= 0);
+  assert.ok(result.top >= 0);
+  assert.ok(result.right <= result.viewportWidth);
+  assert.ok(result.bottom <= result.viewportHeight);
+}
+
 async function assertVisibleText(page: Page, text: string) {
   await page.getByText(text).first().waitFor({ state: "visible" });
 }
@@ -714,7 +945,7 @@ async function autocompleteHasExactOption(page: Page, text: string) {
 }
 
 async function clickEditAction(page: Page, action: string) {
-  await page.locator(".context-submenu-trigger").hover();
+  await page.locator("#cellMenu .context-submenu-trigger").hover();
   await page.locator(`#cellMenu [data-action="${action}"]`).click();
 }
 

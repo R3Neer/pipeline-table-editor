@@ -1,5 +1,6 @@
 import type { AppState, CellData, InstructionRow, PipelineArrow } from "./model";
 import { isUsableArrow, isValidArrowTarget } from "./arrows";
+import { normalizeRowLabel } from "./labels";
 import { normalizeCellText } from "./stage";
 
 const STORAGE_KEY = "pipeline-table-editor-state-v2";
@@ -57,10 +58,14 @@ export function normalizeState(raw: Partial<AppState>): AppState {
 
 function normalizeRow(row: Partial<InstructionRow>, cycles: number): InstructionRow {
   const cells = Array.isArray(row.cells) ? row.cells : [];
-  return {
+  const label = normalizeRowLabel(String(row.label || ""));
+  const normalized: InstructionRow = {
     instruction: String(row.instruction || ""),
     cells: Array.from({ length: cycles }, (_, index) => normalizeCell(cells[index]))
   };
+  if (label) normalized.label = label;
+  if (row.separatorBefore) normalized.separatorBefore = true;
+  return normalized;
 }
 
 function normalizeCell(cell: Partial<CellData> | undefined): CellData {

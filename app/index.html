@@ -92,6 +92,21 @@
       </div>
     </div>
 
+    <div id="rowMenu" class="context-menu" role="menu" aria-hidden="true">
+      <button type="button" data-row-action="edit-label">Add label</button>
+      <button type="button" data-row-action="remove-label">Remove label</button>
+      <button type="button" data-row-action="toggle-separator">Add separator above</button>
+      <div class="context-submenu">
+        <button type="button" class="context-submenu-trigger" aria-haspopup="true">Edit</button>
+        <div class="context-submenu-menu" role="menu">
+          <button type="button" data-row-action="clear">Clear</button>
+          <button type="button" data-row-action="copy">Copy</button>
+          <button type="button" data-row-action="cut">Cut</button>
+          <button type="button" data-row-action="paste">Paste</button>
+        </div>
+      </div>
+    </div>
+
     <div id="autocompleteMenu" class="autocomplete-menu" aria-hidden="true"></div>
 
     <div id="exportModal" class="modal-backdrop" aria-hidden="true">
@@ -106,6 +121,22 @@
         </div>
         <div class="modal-actions">
           <button id="copyExportBtn" type="button">Copy output</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="labelModal" class="modal-backdrop" aria-hidden="true">
+      <section class="modal compact-modal" role="dialog" aria-modal="true" aria-labelledby="labelModalTitle">
+        <div class="modal-header">
+          <h2 id="labelModalTitle">Add label</h2>
+          <button id="cancelLabelBtn" type="button" class="ghost-button">Cancel</button>
+        </div>
+        <div class="field">
+          <label for="labelInput">Label</label>
+          <input id="labelInput" type="text" autocomplete="off" spellcheck="false" placeholder="loop">
+        </div>
+        <div class="modal-actions">
+          <button id="saveLabelBtn" type="button">Save label</button>
         </div>
       </section>
     </div>

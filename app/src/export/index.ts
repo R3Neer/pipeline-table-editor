@@ -16,8 +16,11 @@ export function exportMarkdown(state: AppState): string {
   ];
 
   state.rows.forEach((row) => {
+    if (row.separatorBefore) {
+      lines.push(`| ${header.map(() => "---").join(" | ")} |`);
+    }
     const cells = row.cells.map(markdownCell);
-    lines.push(`| \`${escapePipe(row.instruction)}\` | ${cells.join(" | ")} |`);
+    lines.push(`| ${markdownInstruction(row.label, row.instruction)} | ${cells.join(" | ")} |`);
   });
 
   if (state.arrows.length) {
@@ -33,7 +36,8 @@ export function exportMarkdown(state: AppState): string {
 export function exportText(state: AppState): string {
   const lines = [state.title || "Exercise", `Cycles: ${state.cycles}`, ""];
   state.rows.forEach((row, rowIndex) => {
-    lines.push(`${rowIndex + 1}. ${row.instruction}`);
+    if (row.separatorBefore) lines.push("---");
+    lines.push(`${rowIndex + 1}. ${textInstruction(row.label, row.instruction)}`);
     row.cells.forEach((cell, cycleIndex) => {
       if (cell.text.trim()) {
         const text = cell.struck ? `~~${cell.text}~~` : cell.text;
@@ -88,6 +92,16 @@ function formatMarkdownArrow(state: AppState, arrow: PipelineArrow): string {
 function markdownCell(cell: CellData): string {
   const text = escapePipe(cell.text || "");
   return cell.struck && text ? `~~${text}~~` : text;
+}
+
+function markdownInstruction(label: string | undefined, instruction: string): string {
+  const escapedInstruction = escapePipe(instruction);
+  const escapedLabel = label ? escapePipe(label) : "";
+  return label ? `<span>${escapedLabel}:</span> \`${escapedInstruction}\`` : `\`${escapedInstruction}\``;
+}
+
+function textInstruction(label: string | undefined, instruction: string): string {
+  return label ? `${label}: ${instruction}` : instruction;
 }
 
 function escapePipe(text: string): string {

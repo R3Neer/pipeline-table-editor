@@ -10,6 +10,8 @@ export interface CellData {
 export interface InstructionRow {
   instruction: string;
   cells: CellData[];
+  label?: string;
+  separatorBefore?: boolean;
 }
 
 export interface CellPosition {
@@ -55,6 +57,15 @@ export type ContextAction =
   | "paste"
   | "clear";
 
+export type RowContextAction =
+  | "edit-label"
+  | "remove-label"
+  | "toggle-separator"
+  | "copy"
+  | "cut"
+  | "paste"
+  | "clear";
+
 export interface AppElements {
   layoutRoot: HTMLElement;
   collapseSidebarBtn: HTMLButtonElement;
@@ -77,6 +88,12 @@ export interface AppElements {
   exportModal: HTMLElement;
   exportOutput: HTMLTextAreaElement;
   closeExportBtn: HTMLButtonElement;
+  labelModal: HTMLElement;
+  labelInput: HTMLInputElement;
+  labelModalTitle: HTMLElement;
+  saveLabelBtn: HTMLButtonElement;
+  cancelLabelBtn: HTMLButtonElement;
   cellMenu: HTMLElement;
+  rowMenu: HTMLElement;
   autocompleteMenu: HTMLElement;
 }

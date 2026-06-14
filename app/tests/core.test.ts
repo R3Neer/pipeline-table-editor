@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { tokenizeAssembly } from "../src/core/assembly";
 import { getAutocompleteSuggestions } from "../src/core/autocomplete";
 import { isValidArrowTarget } from "../src/core/arrows";
 import { canStartExpand, makeExpansionValues, wouldChangeFilledCells } from "../src/core/expansion";
 import type { AppState } from "../src/core/model";
+import { getRowActionTargets, isRowNonEmpty, moveRows, removeRows } from "../src/core/rows";
 import { normalizeState } from "../src/core/state";
 import { normalizeCellText, parseStageText, validCellPattern } from "../src/core/stage";
 import { isCellTextValid } from "../src/core/validation";
-import { exportJson } from "../src/export/index";
+import { exportJson, exportMarkdown, exportText } from "../src/export/index";
 
 function makeState(rows: string[][]): AppState {
   const cycles = Math.max(1, ...rows.map((row) => row.length));
@@ -36,6 +38,8 @@ assert.deepEqual(parseStageText("MEM12p"), { root: "MEM", number: 12, pending: t
 assert.equal(validCellPattern.test("RAIZ1"), false);
 assert.equal(validCellPattern.test("IF0"), false);
 assert.equal(validCellPattern.test("IDp"), true);
+assert.deepEqual(tokenizeAssembly("<loop body>"), [{ text: "<loop body>", kind: "annotation" }]);
+assert.equal(tokenizeAssembly("<loop body> addi x1, x1, 1")[0].kind, "instruction");
 
 {
   const state = makeState([["IF", "IDp", "", "EX"]]);
@@ -159,6 +163,44 @@ assert.equal(validCellPattern.test("IDp"), true);
   const normalized = normalizeState(JSON.parse(exportJson(state)) as Partial<AppState>);
   assert.equal(normalized.rows[0].cells[0].text, "IF");
   assert.deepEqual(normalized.arrows, state.arrows);
+}
+
+{
+  const state = makeState([["IF"], ["ID"]]);
+  state.rows[1].label = "loop";
+  state.rows[1].separatorBefore = true;
+  const json = exportJson(state);
+  assert.match(json, /"label": "loop"/);
+  assert.match(json, /"separatorBefore": true/);
+  const normalized = normalizeState(JSON.parse(json) as Partial<AppState>);
+  assert.equal(normalized.rows[1].label, "loop");
+  assert.equal(normalized.rows[1].separatorBefore, true);
+  assert.equal(normalizeState({ title: "old", cycles: 1, rows: [{ instruction: "x", cells: [] }] }).rows[0].label, undefined);
+  assert.match(exportMarkdown(state), /\| --- \| --- \|/);
+  assert.match(exportMarkdown(state), /loop:/);
+  assert.match(exportText(state), /---\n2\. loop: row 2/);
+}
+
+{
+  const state = makeState([["IF", "ID"], ["IF", "ID"], ["IF", "ID"]]);
+  state.rows[1].label = "loop";
+  state.arrows.push({ from: { row: 0, cycle: 0 }, to: { row: 2, cycle: 1 }, label: "" });
+  assert.equal(isRowNonEmpty(state, 1), true);
+  assert.deepEqual(getRowActionTargets(new Set([0, 1]), 1), [0, 1]);
+  assert.deepEqual(getRowActionTargets(new Set([0, 1]), 2), [2]);
+  assert.equal(removeRows(state, [1]), true);
+  assert.equal(state.rows.length, 2);
+  assert.deepEqual(state.arrows, [{ from: { row: 0, cycle: 0 }, to: { row: 1, cycle: 1 }, label: "" }]);
+}
+
+{
+  const state = makeState([["IF", "ID"], ["IF", "ID"], ["IF", "ID"], ["IF", "ID"]]);
+  state.arrows.push({ from: { row: 0, cycle: 0 }, to: { row: 3, cycle: 1 }, label: "" });
+  const selection = moveRows(state, [1, 2], 1);
+  assert.deepEqual(Array.from(selection ?? []).sort((a, b) => a - b), [2, 3]);
+  assert.equal(state.rows[2].instruction, "row 2");
+  assert.equal(state.rows[3].instruction, "row 3");
+  assert.deepEqual(state.arrows, [{ from: { row: 0, cycle: 0 }, to: { row: 1, cycle: 1 }, label: "" }]);
 }
 
 console.log("Core unit tests passed");

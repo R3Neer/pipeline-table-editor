@@ -1,5 +1,6 @@
 import { getAutocompleteSuggestions } from "../core/autocomplete";
 import type { AppState, CellPosition } from "../core/model";
+import { placeDropdown } from "./positioning";
 
 export interface ActiveSuggestion {
   pos: CellPosition | null;
@@ -25,9 +26,6 @@ export function createAutocompleteController(menu: HTMLElement) {
       }
 
       const rect = input.getBoundingClientRect();
-      menu.style.left = `${rect.left}px`;
-      menu.style.top = `${rect.bottom + 4}px`;
-      menu.style.width = `${Math.max(rect.width, 150)}px`;
       menu.replaceChildren(
         ...values.map((value, index) => {
           const option = document.createElement("button");
@@ -42,6 +40,7 @@ export function createAutocompleteController(menu: HTMLElement) {
         })
       );
       menu.setAttribute("aria-hidden", "false");
+      placeDropdown(menu, rect, 150);
     },
     hide(): void {
       active = { ...emptySuggestion };

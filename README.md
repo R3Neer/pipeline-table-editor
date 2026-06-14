@@ -2,7 +2,7 @@
 
 A static web editor for instruction-time pipeline tables.
 
-The app helps draw and document pipeline tables: fast cell editing, visual stage validation, crossed-out cells, forwarding arrows, JSON import/export, Markdown/plain-text export, and local persistence with `localStorage`.
+The app helps draw and document pipeline tables: fast cell editing, visual stage validation, crossed-out cells, row labels, visual row separators, forwarding arrows, JSON import/export, Markdown/plain-text export, and local persistence with `localStorage`.
 
 It is not a pipeline simulator: it does not calculate hazards, CPI, conflicts, or insert stalls automatically.
 
@@ -49,8 +49,8 @@ The output is written to `dist/` and can be published to GitHub Pages.
 - `OPEN_PIPELINE_EDITOR.bat`: launcher for opening the app with a double click on Windows.
 - `app/`: web app source code, Vite configuration, and tests.
   - `app/src/main.ts`: application entry point and event wiring.
-  - `app/src/core/`: data model, state normalization, stage parsing, validation, autocomplete, arrow, selection, and expansion rules.
-  - `app/src/ui/`: DOM helpers, autocomplete menu rendering, arrow drawing, and download helpers.
+  - `app/src/core/`: data model, state normalization, labels, stage parsing, validation, autocomplete, arrow, row, selection, and expansion rules.
+  - `app/src/ui/`: DOM helpers, split-table scrolling/layout, autocomplete menu rendering, floating positioning, arrow drawing, and download helpers.
   - `app/src/export/`: Markdown/text/JSON and PNG export code.
   - `app/src/styles.css`: application styles.
   - `app/tests/`: browser smoke tests.
@@ -80,6 +80,14 @@ Accepted formats:
 - `ROOTnp`, when allowed by the previous numbered stage
 
 Invalid cells are marked visually, but the app does not block editing.
+
+## Row Notes
+
+Right-click an instruction row to add or remove a row label, toggle a visual separator above the row, or use the `Edit` submenu for `Clear`, `Copy`, `Cut`, and `Paste` on the instruction text.
+
+Instruction rows support multi-selection with `Shift` and `Ctrl`/`Cmd`. Row move and delete buttons apply to the selected block. Cell selections and instruction-row selections are mutually exclusive.
+
+Labels and separators are manual annotations. They are exported in JSON, Markdown, plain text, and PNG, but they do not add control-flow simulation or branch validation.
 
 ## Release
 

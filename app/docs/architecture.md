@@ -28,8 +28,10 @@ app/src/
 │  ├─ assembly.ts
 │  ├─ arrows.ts
 │  ├─ autocomplete.ts
+│  ├─ labels.ts
 │  ├─ expansion.ts
 │  ├─ model.ts
+│  ├─ rows.ts
 │  ├─ selection.ts
 │  ├─ stage.ts
 │  ├─ state.ts
@@ -41,7 +43,9 @@ app/src/
    ├─ arrows.ts
    ├─ autocomplete.ts
    ├─ dom.ts
-   └─ download.ts
+   ├─ download.ts
+   ├─ positioning.ts
+   └─ splitTable.ts
 ```
 
 ## Layering
@@ -78,10 +82,12 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | --- | --- | --- |
 | Application coordination | `main.ts` | Owns `AppState`, renders the table, handles events, coordinates persistence, arrows, autocomplete, context menu actions, import, and export. |
 | Domain model | `core/model.ts` | Defines serializable state and UI helper types. |
+| Row labels | `core/labels.ts` | Normalizes labels and assigns stable, subdued colors. |
 | Stage syntax | `core/stage.ts` | Normalizes and parses stage text such as `IF`, `EX2`, or `IDp`. |
 | Autocomplete rules | `core/autocomplete.ts` | Builds ranked stage suggestions from state, current input, pending-stage propagation, and local numbering habits. |
 | Validation | `core/validation.ts` | Applies visual error rules for stage order, missing previous stages, and pending `p` suffixes. |
 | Arrow rules | `core/arrows.ts` | Validates forwarding arrow shape, target constraints, duplicate incoming targets, and row remapping. |
+| Row rules | `core/rows.ts` | Moves and removes instruction rows, remaps arrows, and computes row action targets for single or multi-row selection. |
 | Expansion | `core/expansion.ts` | Computes `Expand` results and whether filled cells would actually change. |
 | Selection | `core/selection.ts` | Builds rectangular, vertical, and keyed multi-cell selections. |
 | Persistence | `core/state.ts` | Creates, normalizes, loads, and saves serializable app state. |
@@ -90,8 +96,20 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Autocomplete UI | `ui/autocomplete.ts` | Displays suggestions, handles active option movement, and emits accepted values. |
 | Arrow drawing | `ui/arrows.ts` | Regenerates SVG paths and arrowheads from stored arrow positions. |
 | Download helpers | `ui/download.ts` | Creates object URLs and triggers browser downloads. |
+| Floating positioning | `ui/positioning.ts` | Keeps autocomplete menus, context menus, and submenus inside the viewport. |
+| Split table layout | `ui/splitTable.ts` | Synchronizes instruction and cycle panes, vertical wheel scrolling, row heights, overflow classes, and bottom breathing room. |
 | Text exports | `export/index.ts` | Generates JSON, Markdown, and plain text. |
 | Image export | `export/image.ts` | Renders a high-resolution PNG with canvas. |
+
+## Design Pattern Notes
+
+The project uses patterns only where they remove real coupling:
+
+- `ui/splitTable.ts` acts as a small Mediator between the instruction pane and the cycle viewport. Vertical scrolling, row-height synchronization, and overflow state are coordinated there so `main.ts` does not need to know the mechanics of the split table.
+- The autocomplete engine is intentionally closer to a set of pure Strategy-like candidate rules than to a class hierarchy. Keeping those rules as functions makes them easy to test without introducing unnecessary objects.
+- `main.ts` still behaves as an application coordinator/facade for browser events. A full Command pattern for every menu action was considered unnecessary for the current size because actions are simple and already covered by tests.
+
+This keeps the code aligned with SOLID in the practical sense: domain rules are testable without the DOM, UI helpers own browser mechanics, and abstractions are introduced only where they reduce concrete coupling.
 
 ## Core Model
 
@@ -107,6 +125,8 @@ classDiagram
   class InstructionRow {
     string instruction
     CellData[] cells
+    string label
+    boolean separatorBefore
   }
 
   class CellData {
@@ -153,6 +173,8 @@ The state shape is deliberately serializable. JSON import/export and `localStora
 - `cycles`: the number of cycle columns.
 - `rows`: one row per assembly instruction.
 - `arrows`: forwarding arrows stored as source and target cell positions.
+
+Each row may also store a manual `label` and `separatorBefore` marker. These are visual annotations only: they do not imply branch direction, loop execution, or control-flow validation.
 
 Each cell stores only user-authored stage text and whether it is struck through. CSS classes, validation state, autocomplete suggestions, and SVG paths are derived from `AppState` instead of persisted separately.
 
@@ -344,6 +366,10 @@ The menu is state-sensitive:
 - `Remove arrows` appears only when the cell has outgoing arrows and is not struck.
 - `Expand` is hidden for struck cells and invalid expansion origins.
 - `Copy` and `Cut` are hidden for multi-selection.
+
+Instruction rows have a separate context menu. It can add or edit a row label, remove an existing label, toggle a separator above the row, or open an `Edit` submenu with `Clear`, `Copy`, `Cut`, and `Paste` for instruction text. Labels are colored with a stable hash-based palette and the same color is used when a known label appears inside assembly text.
+
+Rows support their own selection state. `Shift` selects a contiguous block of instruction rows and `Ctrl`/`Cmd` toggles individual rows. Cell selections and row selections are mutually exclusive: entering one mode clears the other. Row move and delete buttons apply to the selected row block when the clicked button belongs to that block. The deterministic row mutation work lives in `core/rows.ts`; `main.ts` handles confirmations, rendering, and persistence.
 
 ## Expansion Sequence
 
@@ -538,6 +564,7 @@ The unit tests cover:
 - contextual autocomplete ranking and filtering
 - expansion value generation and overwrite detection
 - arrow target validation
+- row movement/removal with arrow remapping
 - JSON serialization followed by state normalization
 
 The smoke test covers:
@@ -550,6 +577,7 @@ The smoke test covers:
 - expansion
 - context menu behavior
 - multi-selection
+- instruction-row labels, edit actions, and row multi-selection
 - arrows
 - split table layout and native scrolling
 - JSON, Markdown, text, and PNG export
@@ -566,6 +594,7 @@ Keep these boundaries when adding new features:
 - Add autocomplete ranking or filtering rules in `core/autocomplete.ts`.
 - Add forwarding-arrow constraints in `core/arrows.ts`.
 - Add deterministic table-editing rules in `core/`.
+- Keep row labels and separators as manual annotations; do not use them to infer control flow.
 - Keep DOM queries and element creation in `ui/` or `main.ts`.
 - Keep file/download browser mechanics in `ui/download.ts`.
 - Keep output formats in `export/`.

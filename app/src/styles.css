@@ -51,9 +51,9 @@
   --p-mix: #d8dee6;
   --p-border-mix: #8d99a8;
   --p-text: #3f4b5a;
-  --struck-mix: #cfd6df;
-  --struck-border-mix: #7d8998;
-  --struck-text: #485463;
+  --struck-bg: #111827;
+  --struck-border: #030712;
+  --struck-text: #f8fafc;
   --assembly-plain: #111827;
   --assembly-instruction: #7c3aed;
   --assembly-register: #b7791f;
@@ -70,6 +70,7 @@
   --table-header-height: 48px;
   --table-row-height: 60px;
   --stage-cell-height: 34px;
+  --cycle-horizontal-scrollbar-reserve: 0px;
   font-family: "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
 }
 
@@ -126,9 +127,9 @@
     --p-mix: #48515d;
     --p-border-mix: #697586;
     --p-text: #d3dbe6;
-    --struck-mix: #3d4652;
-    --struck-border-mix: #697586;
-    --struck-text: #c6d0dc;
+    --struck-bg: #020617;
+    --struck-border: #000000;
+    --struck-text: #f8fafc;
     --assembly-plain: #e5edf7;
     --assembly-instruction: #c084fc;
     --assembly-register: #f4c76e;
@@ -508,6 +509,33 @@ textarea {
   min-width: 100%;
 }
 
+.table-bottom-spacer {
+  display: none;
+  height: calc(var(--table-row-height) * 1.5);
+}
+
+.table-shell.has-vertical-overflow .table-bottom-spacer {
+  display: block;
+}
+
+.cycle-add-row-spacer {
+  display: none;
+  height: var(--table-row-height);
+}
+
+.table-shell.has-vertical-overflow .cycle-add-row-spacer {
+  display: block;
+}
+
+.instruction-scrollbar-spacer {
+  display: none;
+  height: var(--cycle-horizontal-scrollbar-reserve);
+}
+
+.table-shell.has-vertical-overflow .instruction-scrollbar-spacer {
+  display: block;
+}
+
 .add-row-zone {
   position: sticky;
   left: 0;
@@ -551,7 +579,7 @@ textarea {
 .pipeline-table th {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 8;
   height: var(--table-header-height);
   max-height: var(--table-header-height);
   background: var(--table-header-bg);
@@ -574,6 +602,10 @@ textarea {
   overflow: hidden;
 }
 
+.pipeline-table tbody tr.row-separator td {
+  border-top: 3px solid var(--border-strong);
+}
+
 .instruction-col {
   z-index: 2;
   width: var(--instruction-col-width);
@@ -582,7 +614,7 @@ textarea {
 }
 
 th.instruction-col {
-  z-index: 4;
+  z-index: 9;
   background: var(--table-header-bg);
 }
 
@@ -601,8 +633,33 @@ th.instruction-col {
   background: var(--surface);
 }
 
+.instruction-cell.row-selected {
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.instruction-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.row-label {
+  flex: 0 0 auto;
+  max-width: 82px;
+  overflow: hidden;
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .assembly-editor {
   position: relative;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -651,11 +708,25 @@ th.instruction-col {
 
 .asm-token-instruction {
   color: var(--assembly-instruction);
-  font-weight: 800;
 }
 
 .asm-token-register {
   color: var(--assembly-register);
+}
+
+.asm-token-label {
+  font-style: italic;
+  font-weight: inherit;
+}
+
+.asm-token-annotation {
+  color: var(--assembly-plain);
+  font-style: italic;
+  font-weight: 800;
+}
+
+.assembly-input-annotation {
+  font-style: italic;
   font-weight: 800;
 }
 
@@ -781,11 +852,15 @@ th.instruction-col {
 }
 
 .stage-struck {
-  background: color-mix(in srgb, var(--stage-bg) 18%, var(--struck-mix));
-  border-color: color-mix(in srgb, var(--stage-border) 18%, var(--struck-border-mix));
+  background: var(--struck-bg);
+  border-color: var(--struck-border);
   text-decoration: line-through;
-  text-decoration-thickness: 2px;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 3px;
   color: var(--struck-text);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    var(--cell-shadow);
 }
 
 .stage-input.arrow-target-valid {
@@ -860,12 +935,19 @@ th.instruction-col {
   height: calc(100% + 12px);
 }
 
+.context-submenu.submenu-opens-left::after {
+  right: 100%;
+  left: auto;
+}
+
 .context-submenu-menu {
-  position: absolute;
-  top: -6px;
-  left: calc(100% + 6px);
+  position: fixed;
+  top: 0;
+  left: 0;
   display: none;
   min-width: 150px;
+  max-height: calc(100vh - 16px);
+  overflow: auto;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 6px;
@@ -915,6 +997,10 @@ th.instruction-col {
   padding: 16px;
   background: var(--surface);
   box-shadow: var(--shadow);
+}
+
+.compact-modal {
+  width: min(380px, 92vw);
 }
 
 .modal textarea {
