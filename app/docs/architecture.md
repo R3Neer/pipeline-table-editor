@@ -4,6 +4,8 @@ This document explains the architecture of Pipeline Table Editor. It is written 
 
 The app is intentionally small and framework-free: TypeScript, Vite, browser DOM APIs, SVG, canvas, and `localStorage`.
 
+The active refactor plan, file-size policy, multi-agent ownership model, and commit policy are tracked in [`refactor-plan.md`](./refactor-plan.md).
+
 The main design goal is to keep pipeline-table editing explicit and predictable. The app validates and visualizes user-entered stages, but it does not simulate a processor or infer hazards automatically.
 
 ## Architectural Summary
@@ -14,18 +16,24 @@ The code follows a small layered split:
 
 - `core/`: domain model and deterministic rules with no direct DOM access.
 - `core/useCases/`: deterministic state-changing workflows with no direct DOM access.
-- `app/`: transient application-session types that are not part of the persisted model.
+- `app/`: application controllers and transient application-session state that are not part of the persisted model.
 - `integration/`: adapters for browser integration points such as `localStorage`.
 - `ui/`: browser-facing helpers for DOM lookup, autocomplete rendering, SVG arrows, and downloads.
 - `export/`: output generation for JSON, Markdown, plain text, and PNG.
 
-`main.ts` is intentionally the only broad coordinator. It connects browser events, mutable state, rendering, persistence adapters, and feature modules. It should not accumulate new pure rules when those rules can live in `core/`.
+`main.ts` is intentionally the only broad composition root. It connects browser events, mutable state, rendering, persistence adapters, and feature controllers. It should stay thin: pure rules belong in `core/`, browser adapters belong in `integration/`, reusable presentation helpers belong in `ui/`, and cohesive interaction workflows belong in `app/` controllers.
 
 ## Directory Layout
 
 ```text
 app/src/
 ├─ app/
+│  ├─ appContext.ts
+│  ├─ arrowAndExpansionController.ts
+│  ├─ exportImportController.ts
+│  ├─ modalController.ts
+│  ├─ persistenceController.ts
+│  ├─ selectionController.ts
 │  └─ sessionTypes.ts
 ├─ main.ts
 ├─ styles.css
@@ -52,6 +60,7 @@ app/src/
 │  └─ types.ts
 └─ ui/
    ├─ arrows.ts
+   ├─ assemblyHighlight.ts
    ├─ autocomplete.ts
    ├─ cellClasses.ts
    ├─ dom.ts
@@ -67,7 +76,7 @@ app/src/
 flowchart TD
   Browser["Browser DOM"]
   Main["Application coordinator\nmain"]
-  App["app/\nSession-only types"]
+  App["app/\nApplication controllers\nand session state"]
   Core["core/\nPure-ish domain rules and state"]
   UseCases["core/useCases\nState-changing workflows"]
   Integration["integration/\nBrowser adapters"]
@@ -87,13 +96,13 @@ flowchart TD
   Export --> Core
 ```
 
-The application coordinator owns the mutable app state, wires events, calls domain helpers, updates the DOM, schedules persistence through integration adapters, and redraws arrows.
+The application coordinator owns the mutable app state and wires browser events to application controllers. It still performs table rendering directly, but cohesive workflows such as selection, modal handling, persistence, import/export, and arrow/expansion drafts live in `app/` modules.
 
 The `core/` modules avoid direct DOM and browser-storage access. They hold the serializable data model, stage parsing, validation rules, selection utilities, expansion rules, assembly tokenization, and persisted-state normalization.
 
 The `core/useCases/` modules own deterministic state-changing workflows that are still business logic, such as applying instruction text, changing cycle count, and pruning arrows after edits.
 
-The `app/` modules hold session-only interaction types. These are intentionally outside `core/model.ts` so the persisted model stays focused on serializable domain state.
+The `app/` modules hold application-level controllers and session-only interaction state. These modules may coordinate `core/`, `ui/`, `integration/`, and `export/`, but they should expose small APIs back to `main.ts` instead of importing each other through hidden globals.
 
 The `integration/` modules adapt external browser services to the app. They may call browser APIs, but they should keep that work thin and delegate parsing or validation back to `core/`.
 
@@ -105,8 +114,14 @@ The `export/` modules produce external representations. `export/index.ts` contai
 
 | Area | Modules | Responsibility |
 | --- | --- | --- |
-| Application coordination | `main.ts` | Owns `AppState`, renders the table, handles events, coordinates persistence, arrows, autocomplete, context menu actions, import, and export. |
-| Session types | `app/sessionTypes.ts` | Defines transient copied-cell and draft interaction state. |
+| Application composition | `main.ts` | Owns `AppState`, renders the table, wires browser events, and delegates cohesive workflows to application controllers. |
+| Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
+| Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
+| Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |
+| Persistence controller | `app/persistenceController.ts` | Debounces saves and delegates actual storage to `integration/storage.ts`. |
+| Export/import controller | `app/exportImportController.ts` | Coordinates text export, PNG export, JSON import, clipboard copy, and export menu state. |
+| Arrow and expansion controller | `app/arrowAndExpansionController.ts` | Owns arrow draft, hover target, expansion draft, arrow removal, arrow drawing orchestration, and overwrite confirmations. |
+| Session types | `app/sessionTypes.ts` | Defines transient copied-cell and draft interaction state that is not persisted. |
 | Domain model | `core/model.ts` | Defines serializable pipeline-table state. |
 | Row labels | `core/labels.ts` | Normalizes labels and assigns stable, subdued colors. |
 | Stage syntax | `core/stage.ts` | Normalizes and parses stage text such as `IF`, `EX2`, or `IDp`. |
@@ -135,9 +150,18 @@ The `export/` modules produce external representations. `export/index.ts` contai
 
 The project uses patterns only where they remove real coupling:
 
+- `app/*Controller.ts` modules are small Controllers/Facades around cohesive workflows. They reduce `main.ts` coupling without introducing framework state or class-heavy architecture.
 - `ui/splitTable.ts` acts as a small Mediator between the instruction pane and the cycle viewport. Vertical scrolling, row-height synchronization, and overflow state are coordinated there so `main.ts` does not need to know the mechanics of the split table.
-- The autocomplete engine is intentionally closer to a set of pure Strategy-like candidate rules than to a class hierarchy. Keeping those rules as functions makes them easy to test without introducing unnecessary objects.
-- `main.ts` still behaves as an application coordinator/facade for browser events. A full Command pattern for every menu action was considered unnecessary for the current size because actions are simple and already covered by tests.
+- `core/autocomplete.ts` and `core/validation.ts` use Strategy-like function pipelines. New suggestion providers or validation rules can be added without changing unrelated presentation code.
+- `integration/storage.ts` is an Adapter around `localStorage`; `app/persistenceController.ts` is the debounced application workflow that calls it.
+- `main.ts` still behaves as the composition root for browser events. A full Command pattern for every menu action is intentionally deferred because current actions are simple, direct, and easier to review as functions.
+
+Architectural review notes:
+
+- Priority 1: keep extracting cohesive controllers from `main.ts`, especially context menus and cell/row editing. These are Controller/Facade opportunities with low risk and clear review boundaries.
+- Priority 2: consider a small command registry only if context-menu actions continue to grow. Today, a full Command pattern would mostly move simple `if` statements into a map.
+- Priority 3: consider a dedicated table view module once editing controllers are smaller. `renderTable()` remains the next large presentation responsibility.
+- Avoid introducing an event bus for now. Explicit callbacks and narrow context objects make dependencies easier to audit in a framework-free app.
 
 This keeps the code aligned with SOLID in the practical sense: domain rules are testable without the DOM or browser storage, integration adapters isolate external services, UI helpers own browser presentation mechanics, and abstractions are introduced only where they reduce concrete coupling.
 
@@ -403,7 +427,7 @@ The menu is state-sensitive:
 
 Instruction rows have a separate context menu. It can add or edit a row label, remove an existing label, toggle a separator above the row, or open an `Edit` submenu with `Clear`, `Copy`, `Cut`, and `Paste` for instruction text. Labels are colored with a stable hash-based palette and the same color is used when a known label appears inside assembly text.
 
-Rows support their own selection state. `Shift` selects a contiguous block of instruction rows and `Ctrl`/`Cmd` toggles individual rows. Cell selections and row selections are mutually exclusive: entering one mode clears the other. Row move and delete buttons apply to the selected row block when the clicked button belongs to that block. The deterministic row mutation work lives in `core/rows.ts`; `main.ts` handles confirmations, rendering, and persistence.
+Rows support their own selection state. `Shift` selects a contiguous block of instruction rows and `Ctrl`/`Cmd` toggles individual rows. Cell selections and row selections are mutually exclusive: entering one mode clears the other. Selection state and selection math live in `app/selectionController.ts` with help from `core/selection.ts`; `main.ts` handles DOM refresh. Row move and delete buttons apply to the selected row block when the clicked button belongs to that block. The deterministic row mutation work lives in `core/rows.ts`; `main.ts` handles confirmations, rendering, and persistence.
 
 ## Expansion Sequence
 
@@ -453,7 +477,7 @@ sequenceDiagram
   deactivate app
 ```
 
-Expansion rules are pure domain logic in `core/expansion.ts`; UI confirmation and rendering stay in `main.ts`.
+Expansion rules are pure domain logic in `core/expansion.ts`; draft state, overwrite confirmation, rendering, and persistence orchestration live in `app/arrowAndExpansionController.ts`.
 
 ## Forwarding Arrow Sequence
 
@@ -509,7 +533,7 @@ sequenceDiagram
   deactivate app
 ```
 
-Arrows are stored in state as row/cycle positions. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes. Arrow creation is single-shot: the first clicked target either creates a valid arrow or cancels the draft. A cell that already has an incoming arrow is not a valid target for another arrow.
+Arrows are stored in state as row/cycle positions. `app/arrowAndExpansionController.ts` owns arrow draft state and coordinates validation with `core/arrows.ts`; `ui/arrows.ts` only draws the SVG layer. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes. Arrow creation is single-shot: the first clicked target either creates a valid arrow or cancels the draft. A cell that already has an incoming arrow is not a valid target for another arrow.
 
 ## Export Sequence
 
@@ -580,6 +604,8 @@ The app does not use a virtual DOM or framework state store. Rendering is explic
 5. The SVG arrow layer is redrawn after table updates, scrolling, and resizing.
 6. A debounced save passes the serializable state to the storage integration adapter.
 
+Selection state and arrow/expansion draft state used to live directly inside `main.ts`; they now live in `app/selectionController.ts` and `app/arrowAndExpansionController.ts`. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
+
 This direct rendering style is simple enough for the size of the project and keeps deployment as a static site.
 
 ## Testing Strategy
@@ -637,7 +663,8 @@ Keep these boundaries when adding new features:
 - Add autocomplete ranking or filtering behavior as a `SuggestionProvider` in `core/autocomplete.ts`.
 - Add forwarding-arrow constraints in `core/arrows.ts`.
 - Add deterministic table-editing workflows in `core/useCases/`.
-- Keep transient UI/session types in `app/`, not in `core/model.ts`.
+- Keep application workflow coordination and transient UI/session state in `app/`, not in `core/model.ts`.
+- Keep controller APIs small and explicit. Prefer passing callbacks/capabilities over importing `main.ts` state indirectly.
 - Keep row labels and separators as manual annotations; do not use them to infer control flow.
 - Keep browser storage, URL, clipboard, or other external-service adapters in `integration/` when they are not primarily visual UI.
 - Keep DOM queries and element creation in `ui/` or `main.ts`.

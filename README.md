@@ -58,25 +58,26 @@ The output is written to `dist/`.
 
 - `OPEN_PIPELINE_EDITOR.bat`: launcher for opening the app with a double click on Windows.
 - `app/`: web app source code, Vite configuration, and tests.
-  - `app/src/main.ts`: application coordinator and event wiring.
+  - `app/src/main.ts`: lightweight application coordinator and event wiring.
   - `app/src/core/`: data model, state normalization, labels, stage parsing, validation, autocomplete, arrow, row, selection, and expansion rules.
   - `app/src/core/useCases/`: deterministic table-editing workflows with no DOM access.
-  - `app/src/app/`: transient application-session types that are not persisted state.
+  - `app/src/app/`: application controllers for selection, modals, persistence, import/export, arrows/expansion, plus transient session types.
   - `app/src/integration/`: browser integration that adapts app state to external services such as `localStorage`.
   - `app/src/ui/`: DOM helpers, split-table scrolling/layout, autocomplete menu rendering, floating positioning, arrow drawing, and download helpers.
   - `app/src/export/`: Markdown/text/JSON/PNG export code and export format metadata.
   - `app/src/styles.css`: application styles.
-  - `app/tests/`: browser smoke tests.
+  - `app/tests/`: unit, integration-style, screenshot, and browser smoke tests.
 - `codex/`: auxiliary notes for Codex work.
 - `README.md` and `LICENSE`: public project documentation.
 
-See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams, class diagrams, and sequence diagrams.
+See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams, class diagrams, and sequence diagrams. The ongoing large-refactor plan, multi-agent ownership model, and commit policy live in [`app/docs/refactor-plan.md`](./app/docs/refactor-plan.md).
 
 ## Scripts
 
 - `npm run dev`: local Vite server.
 - `npm run build`: TypeScript check and static build.
 - `npm run preview`: previews `dist/`.
+- `npm run audit:file-sizes`: reports code/style/test files over 100 lines, warns over 300, and fails over 500.
 - `npm run screenshots`: regenerates documentation screenshots.
 - `npm run test:unit`: fast unit tests for domain rules.
 - `npm run test:integration`: integration-style unit tests for extensibility seams, storage, export services, visual class composition, and table-editing use cases.

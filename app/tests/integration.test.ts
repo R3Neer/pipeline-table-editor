@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createArrowAndExpansionController } from "../src/app/arrowAndExpansionController";
+import { createSelectionController } from "../src/app/selectionController";
 import { getAutocompleteSuggestions, type SuggestionProvider } from "../src/core/autocomplete";
 import type { AppState, CellPosition } from "../src/core/model";
 import { createCellValidator, validateCellText, type CellValidationRule } from "../src/core/validation";
@@ -53,6 +55,63 @@ function makeState(rows: string[][]): AppState {
     })),
     arrows: []
   };
+}
+
+{
+  const selection = createSelectionController();
+  selection.setSingleSelection({ row: 0, cycle: 0 });
+  selection.updateSelectionFromClick({ row: 1, cycle: 1 }, { shiftKey: true, altKey: false, ctrlKey: false, metaKey: false });
+  assert.deepEqual(
+    selection.getSelectedPositions(makeState([["IF", ""], ["", "ID"]])).sort((a, b) => a.row - b.row || a.cycle - b.cycle),
+    [
+      { row: 0, cycle: 0 },
+      { row: 0, cycle: 1 },
+      { row: 1, cycle: 0 },
+      { row: 1, cycle: 1 }
+    ]
+  );
+  selection.setSingleRowSelection(1);
+  selection.updateRowSelectionFromClick(2, { shiftKey: true, altKey: false, ctrlKey: false, metaKey: false });
+  assert.deepEqual(selection.getRowActionTargets(1), [1, 2]);
+}
+
+{
+  const state = makeState([["IF", "ID", ""], ["", "ID", "EX"]]);
+  let rendered = 0;
+  let saved = 0;
+  const inputs = new Map<string, { value: string }>();
+  const controller = createArrowAndExpansionController(
+    {
+      elements: {} as never,
+      getState: () => state,
+      render: () => {
+        rendered += 1;
+      },
+      scheduleSave: () => {
+        saved += 1;
+      },
+      showStatus: () => undefined,
+      showConfirm: async () => true
+    },
+    {
+      getCellElement: (pos) => inputs.get(`${pos.row}:${pos.cycle}`) as HTMLInputElement | null,
+      hideAutocomplete: () => undefined,
+      refreshCellClasses: () => undefined,
+      renderSelectionInfo: () => undefined
+    }
+  );
+
+  controller.startArrow({ row: 0, cycle: 0 });
+  controller.tryCreateArrowTo({ row: 1, cycle: 1 });
+  assert.deepEqual(state.arrows, [{ from: { row: 0, cycle: 0 }, to: { row: 1, cycle: 1 }, label: "" }]);
+  assert.equal(rendered, 1);
+  assert.equal(saved, 1);
+
+  inputs.set("0:2", { value: "" });
+  controller.startExpand({ row: 0, cycle: 0 });
+  await controller.tryExpandTo({ row: 0, cycle: 2 });
+  assert.equal(state.rows[0].cells[2].text, "IF3");
+  assert.equal(inputs.get("0:2")?.value, "IF3");
 }
 
 {

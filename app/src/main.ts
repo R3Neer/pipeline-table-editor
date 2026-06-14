@@ -1,66 +1,92 @@
 import "./styles.css";
 
-import { isValidArrowTarget, samePos } from "./core/arrows";
-import { canStartExpand as canStartExpandStage, makeExpansionValues, wouldChangeFilledCells } from "./core/expansion";
+import { samePos } from "./core/arrows";
 import { getKnownLabels, getLabelColor, normalizeRowLabel } from "./core/labels";
-import type {
-  AppState,
-  CellPosition,
-} from "./core/model";
-import type { ArrowDraft, CopiedCell, ExpandDraft } from "./app/sessionTypes";
-import { makeRectangularSelection, makeVerticalSelection, parsePositionKey, positionKey } from "./core/selection";
+import type { AppState, CellPosition } from "./core/model";
+import { createArrowAndExpansionController } from "./app/arrowAndExpansionController";
+import { createExportImportController } from "./app/exportImportController";
+import { createModalController } from "./app/modalController";
+import { createPersistenceController } from "./app/persistenceController";
+import { createSelectionController } from "./app/selectionController";
+import type { CopiedCell } from "./app/sessionTypes";
 import {
-  getRowActionTargets as getSelectedRowTargets,
   isRowNonEmpty as isInstructionRowNonEmpty,
   moveRows,
   removeRows
 } from "./core/rows";
-import { createDefaultState, makeRow, normalizeState } from "./core/state";
+import { createDefaultState, makeRow } from "./core/state";
 import {
   applyInstructionText,
   changeCycleCount,
   pruneArrowsFromStruckCells as pruneStruckCellArrows,
-  removeOutgoingArrows as removeOutgoingArrowsFromState,
   wouldLoseCellsAfterCycleReduction
 } from "./core/useCases/tableEditing";
 import { normalizeCellText } from "./core/validation";
-import { exportPng } from "./export/index";
-import { createTextExportFile } from "./export/service";
 import type { ExportFormat } from "./export/types";
-import { loadStateFromStorage, saveStateToStorage } from "./integration/storage";
-import { drawArrows as drawArrowLayer } from "./ui/arrows";
+import { loadStateFromStorage } from "./integration/storage";
 import { createAutocompleteController } from "./ui/autocomplete";
+import { renderAssemblyHighlight } from "./ui/assemblyHighlight";
 import { getCellClassName } from "./ui/cellClasses";
-import { getAppElements, getInputPosition, renderAssemblyHighlight } from "./ui/dom";
-import { downloadBlob, makeDownloadSlug } from "./ui/download";
+import { getAppElements, getInputPosition } from "./ui/dom";
 import type { ContextAction, RowContextAction } from "./ui/menuActions";
 import { placeFloatingElement, placeSubmenu } from "./ui/positioning";
 import { createSplitTableController } from "./ui/splitTable";
 
 const elements = getAppElements();
 const autocomplete = createAutocompleteController(elements.autocompleteMenu);
+const selection = createSelectionController();
 const splitTable = createSplitTableController(elements, () => drawArrows());
 
 let state: AppState = loadStateFromStorage() || createDefaultState();
-let selectedCell: CellPosition | null = null;
-let selectionAnchor: CellPosition | null = null;
-let selectedCellKeys = new Set<string>();
-let selectedRows = new Set<number>();
-let rowSelectionAnchor: number | null = null;
 let contextCell: CellPosition | null = null;
 let contextRow: number | null = null;
 let labelEditRow: number | null = null;
 let copiedCell: CopiedCell | null = null;
 let copiedInstruction: string | null = null;
-let arrowDraft: ArrowDraft = { from: null };
-let arrowHoverTarget: CellPosition | null = null;
-let expandDraft: ExpandDraft = { from: null };
-let saveTimer = 0;
-let confirmResolver: ((value: boolean) => void) | null = null;
-let activeTextExportFormat: Exclude<ExportFormat, "png"> | null = null;
+
+const { showConfirm, showNotice, closeConfirmModal } = createModalController(elements);
+const { scheduleSave, saveState } = createPersistenceController({
+  elements,
+  getState: () => state,
+  showStatus
+});
+const exportImport = createExportImportController(
+  {
+    elements,
+    getState: () => state,
+    setState,
+    render,
+    saveState,
+    showStatus,
+    showNotice
+  },
+  {
+    onStateImported: resetAfterStateImport
+  }
+);
+const arrowsAndExpansion = createArrowAndExpansionController(
+  {
+    elements,
+    getState: () => state,
+    render,
+    scheduleSave,
+    showStatus,
+    showConfirm
+  },
+  {
+    getCellElement,
+    hideAutocomplete: autocomplete.hide,
+    refreshCellClasses,
+    renderSelectionInfo
+  }
+);
 
 const minInstructionColumnWidth = 320;
 const maxInstructionColumnWidth = 520;
+
+function setState(nextState: AppState): void {
+  state = nextState;
+}
 
 function render(): void {
   elements.titleInput.value = state.title;
@@ -69,43 +95,6 @@ function render(): void {
   renderTable();
   renderSelectionInfo();
   window.requestAnimationFrame(drawArrows);
-}
-
-function showConfirm(title: string, message: string, acceptText = "Continue"): Promise<boolean> {
-  closeConfirmModal(false);
-  elements.confirmModalTitle.textContent = title;
-  elements.confirmModalMessage.textContent = message;
-  elements.acceptConfirmBtn.textContent = acceptText;
-  elements.cancelConfirmBtn.hidden = false;
-  elements.confirmModal.classList.add("is-warning");
-  elements.confirmModal.setAttribute("aria-hidden", "false");
-  window.setTimeout(() => elements.cancelConfirmBtn.focus(), 0);
-  return new Promise((resolve) => {
-    confirmResolver = resolve;
-  });
-}
-
-function showNotice(title: string, message: string): Promise<boolean> {
-  closeConfirmModal(false);
-  elements.confirmModalTitle.textContent = title;
-  elements.confirmModalMessage.textContent = message;
-  elements.acceptConfirmBtn.textContent = "OK";
-  elements.cancelConfirmBtn.hidden = true;
-  elements.confirmModal.classList.remove("is-warning");
-  elements.confirmModal.setAttribute("aria-hidden", "false");
-  window.setTimeout(() => elements.acceptConfirmBtn.focus(), 0);
-  return new Promise((resolve) => {
-    confirmResolver = resolve;
-  });
-}
-
-function closeConfirmModal(value: boolean): void {
-  elements.confirmModal.setAttribute("aria-hidden", "true");
-  if (confirmResolver) {
-    const resolve = confirmResolver;
-    confirmResolver = null;
-    resolve(value);
-  }
 }
 
 function renderTable(): void {
@@ -194,7 +183,7 @@ function makeHeader(text: string, className: string): HTMLTableCellElement {
 function makeInstructionEditor(rowIndex: number): HTMLElement {
   const row = state.rows[rowIndex];
   const wrapper = document.createElement("div");
-  wrapper.className = `instruction-cell${selectedRows.has(rowIndex) ? " row-selected" : ""}`;
+  wrapper.className = `instruction-cell${selection.hasSelectedRow(rowIndex) ? " row-selected" : ""}`;
   wrapper.dataset.row = String(rowIndex);
   wrapper.addEventListener("click", onInstructionClick);
   wrapper.addEventListener("contextmenu", onInstructionContextMenu);
@@ -295,11 +284,11 @@ function makeInstructionScrollbarSpacer(): HTMLElement {
 
 function getCellClassForPosition(row: number, cycle: number): string {
   return getCellClassName(state, { row, cycle }, {
-    selectedCell,
-    selectedCellKeys,
-    arrowFrom: arrowDraft.from,
-    arrowHoverTarget,
-    expandFrom: expandDraft.from
+    selectedCell: selection.getSelectedCell(),
+    selectedCellKeys: selection.getSelectedCellKeys(),
+    arrowFrom: arrowsAndExpansion.getArrowFrom(),
+    arrowHoverTarget: arrowsAndExpansion.getArrowHoverTarget(),
+    expandFrom: arrowsAndExpansion.getExpandFrom()
   });
 }
 
@@ -326,8 +315,9 @@ function onCellInput(event: Event): void {
 function onCellFocus(event: FocusEvent): void {
   const input = event.currentTarget as HTMLInputElement;
   clearRowSelection();
-  selectedCell = getInputPosition(input);
-  if (!selectionAnchor) setSingleSelection(selectedCell);
+  const selectedCell = getInputPosition(input);
+  selection.setSelectedCell(selectedCell);
+  if (!selection.hasSelectionAnchor()) setSingleSelection(selectedCell);
   hideContextMenu();
   refreshCellClasses();
   renderSelectionInfo();
@@ -337,14 +327,16 @@ function onCellFocus(event: FocusEvent): void {
 function onCellClick(event: MouseEvent): void {
   const input = event.currentTarget as HTMLInputElement;
   clearRowSelection();
-  selectedCell = getInputPosition(input);
+  const selectedCell = getInputPosition(input);
+  selection.setSelectedCell(selectedCell);
   hideContextMenu();
-  if (expandDraft.from && !samePos(expandDraft.from, selectedCell)) {
-    void tryExpandTo(selectedCell);
+  const expandFrom = arrowsAndExpansion.getExpandFrom();
+  if (expandFrom && !samePos(expandFrom, selectedCell)) {
+    void arrowsAndExpansion.tryExpandTo(selectedCell);
     return;
   }
-  if (arrowDraft.from) {
-    tryCreateArrowTo(selectedCell);
+  if (arrowsAndExpansion.getArrowFrom()) {
+    arrowsAndExpansion.tryCreateArrowTo(selectedCell);
     return;
   }
   updateSelectionFromClick(selectedCell, event);
@@ -357,18 +349,11 @@ function onCellClick(event: MouseEvent): void {
 }
 
 function onCellMouseEnter(event: MouseEvent): void {
-  if (!arrowDraft.from) return;
-  arrowHoverTarget = getInputPosition(event.currentTarget as HTMLInputElement);
-  refreshCellClasses();
+  arrowsAndExpansion.setArrowHoverTarget(getInputPosition(event.currentTarget as HTMLInputElement));
 }
 
 function onCellMouseLeave(event: MouseEvent): void {
-  if (!arrowHoverTarget) return;
-  const pos = getInputPosition(event.currentTarget as HTMLInputElement);
-  if (samePos(arrowHoverTarget, pos)) {
-    arrowHoverTarget = null;
-    refreshCellClasses();
-  }
+  arrowsAndExpansion.clearArrowHoverTargetIfMatches(getInputPosition(event.currentTarget as HTMLInputElement));
 }
 
 function onCellContextMenu(event: MouseEvent): void {
@@ -376,8 +361,8 @@ function onCellContextMenu(event: MouseEvent): void {
   const input = event.currentTarget as HTMLInputElement;
   clearRowSelection();
   contextCell = getInputPosition(input);
-  selectedCell = { ...contextCell };
-  if (!selectedCellKeys.has(positionKey(contextCell))) setSingleSelection(contextCell);
+  selection.setSelectedCell(contextCell);
+  if (!selection.hasSelectedCell(contextCell)) setSingleSelection(contextCell);
   refreshCellClasses();
   autocomplete.hide();
   showContextMenu(event.clientX, event.clientY);
@@ -453,30 +438,7 @@ function focusCell(row: number, cycle: number): void {
 }
 
 function updateSelectionFromClick(pos: CellPosition, event: MouseEvent): void {
-  if (event.shiftKey && selectionAnchor) {
-    selectedCellKeys = makeRectangularSelection(selectionAnchor, pos);
-    return;
-  }
-
-  if (event.altKey && selectionAnchor) {
-    selectedCellKeys = makeVerticalSelection(selectionAnchor, pos);
-    return;
-  }
-
-  if (event.ctrlKey || event.metaKey) {
-    const key = positionKey(pos);
-    selectedCellKeys = new Set(selectedCellKeys);
-    if (selectedCellKeys.has(key)) {
-      selectedCellKeys.delete(key);
-    } else {
-      selectedCellKeys.add(key);
-    }
-    if (!selectedCellKeys.size) selectedCellKeys.add(key);
-    selectionAnchor ||= pos;
-    return;
-  }
-
-  setSingleSelection(pos);
+  selection.updateSelectionFromClick(pos, event);
 }
 
 function isSelectionModifierClick(event: MouseEvent): boolean {
@@ -484,83 +446,56 @@ function isSelectionModifierClick(event: MouseEvent): boolean {
 }
 
 function setSingleSelection(pos: CellPosition): void {
-  clearRowSelection();
-  selectedCell = { ...pos };
-  selectionAnchor = { ...pos };
-  selectedCellKeys = new Set([positionKey(pos)]);
+  selection.setSingleSelection(pos);
+  refreshRowSelectionClasses();
 }
 
 function clearSelection(): void {
-  selectionAnchor = null;
-  selectedCellKeys = new Set();
+  selection.clearSelection();
 }
 
 function clearRowSelection(): void {
-  rowSelectionAnchor = null;
-  selectedRows = new Set();
+  selection.clearRowSelection();
   refreshRowSelectionClasses();
 }
 
 function clearCellSelection(): void {
-  selectedCell = null;
-  clearSelection();
+  selection.clearCellSelection();
   refreshCellClasses();
 }
 
 function setSingleRowSelection(rowIndex: number): void {
-  clearCellSelection();
-  rowSelectionAnchor = rowIndex;
-  selectedRows = new Set([rowIndex]);
+  selection.setSingleRowSelection(rowIndex);
+  refreshCellClasses();
   refreshRowSelectionClasses();
 }
 
 function updateRowSelectionFromClick(rowIndex: number, event: MouseEvent): void {
-  clearCellSelection();
-  if (event.shiftKey && rowSelectionAnchor !== null) {
-    const start = Math.min(rowSelectionAnchor, rowIndex);
-    const end = Math.max(rowSelectionAnchor, rowIndex);
-    selectedRows = new Set(Array.from({ length: end - start + 1 }, (_, offset) => start + offset));
-    refreshRowSelectionClasses();
-    return;
-  }
-
-  if (event.ctrlKey || event.metaKey) {
-    selectedRows = new Set(selectedRows);
-    if (selectedRows.has(rowIndex)) {
-      selectedRows.delete(rowIndex);
-    } else {
-      selectedRows.add(rowIndex);
-    }
-    if (!selectedRows.size) selectedRows.add(rowIndex);
-    rowSelectionAnchor ||= rowIndex;
-    refreshRowSelectionClasses();
-    return;
-  }
-
-  setSingleRowSelection(rowIndex);
+  selection.updateRowSelectionFromClick(rowIndex, event);
+  refreshCellClasses();
+  refreshRowSelectionClasses();
 }
 
 function refreshRowSelectionClasses(): void {
   document.querySelectorAll<HTMLElement>(".instruction-cell").forEach((rowElement) => {
     const rowIndex = Number(rowElement.dataset.row);
-    rowElement.classList.toggle("row-selected", selectedRows.has(rowIndex));
+    rowElement.classList.toggle("row-selected", selection.hasSelectedRow(rowIndex));
   });
 }
 
 function getActionTargets(fallback: CellPosition): CellPosition[] {
-  const positions = getSelectedPositions();
-  return positions.length > 1 ? positions : [fallback];
+  return selection.getCellActionTargets(fallback, state);
 }
 
 function getSelectedPositions(): CellPosition[] {
-  return [...selectedCellKeys].map(parsePositionKey).filter((pos) => Boolean(state.rows[pos.row]?.cells[pos.cycle]));
+  return selection.getSelectedPositions(state);
 }
 
 function isMultiSelection(): boolean {
-  return selectedCellKeys.size > 1;
+  return selection.isMultiSelection();
 }
 
-function toggleStrike(pos = selectedCell): void {
+function toggleStrike(pos = selection.getSelectedCell()): void {
   if (!pos) return;
   const cell = state.rows[pos.row].cells[pos.cycle];
   cell.struck = !cell.struck;
@@ -570,7 +505,7 @@ function toggleStrike(pos = selectedCell): void {
   window.requestAnimationFrame(drawArrows);
 }
 
-function clearCell(pos = selectedCell): void {
+function clearCell(pos = selection.getSelectedCell()): void {
   if (!pos) return;
   getActionTargets(pos).forEach((target) => {
     const cell = state.rows[target.row].cells[target.cycle];
@@ -585,19 +520,19 @@ function clearCell(pos = selectedCell): void {
   window.requestAnimationFrame(drawArrows);
 }
 
-function copyCell(pos = selectedCell): void {
+function copyCell(pos = selection.getSelectedCell()): void {
   if (!pos || isMultiSelection()) return;
   const cell = state.rows[pos.row].cells[pos.cycle];
   copiedCell = { text: cell.text, struck: cell.struck };
 }
 
-function cutCell(pos = selectedCell): void {
+function cutCell(pos = selection.getSelectedCell()): void {
   if (!pos || isMultiSelection()) return;
   copyCell(pos);
   clearCell(pos);
 }
 
-function pasteCell(pos = selectedCell): void {
+function pasteCell(pos = selection.getSelectedCell()): void {
   if (!pos || !copiedCell) return;
   const sourceCell = copiedCell;
   getActionTargets(pos).forEach((target) => {
@@ -615,11 +550,11 @@ function pasteCell(pos = selectedCell): void {
 
 function applyInstructions(): void {
   applyInstructionText(state, elements.instructionsInput.value);
-  selectedCell = null;
+  selection.setSelectedCell(null);
   clearSelection();
   clearRowSelection();
   cancelArrowDraft();
-  expandDraft = { from: null };
+  arrowsAndExpansion.cancelExpandDraft();
   render();
   scheduleSave();
 }
@@ -669,14 +604,13 @@ function moveRowsFrom(rowIndex: number, direction: number): void {
 function moveSelectedRows(rowIndexes: number[], direction: number): void {
   const nextSelection = moveRows(state, rowIndexes, direction);
   if (!nextSelection) return;
-  selectedRows = nextSelection;
-  rowSelectionAnchor = selectedRows.size ? Math.min(...selectedRows) : null;
+  selection.replaceRowSelection(nextSelection);
   render();
   scheduleSave();
 }
 
 function getRowActionTargets(fallback: number): number[] {
-  return getSelectedRowTargets(selectedRows, fallback);
+  return selection.getRowActionTargets(fallback);
 }
 
 async function changeCycles(): Promise<void> {
@@ -735,7 +669,7 @@ function positionContextSubmenu(submenu: HTMLElement): void {
 
 function showRowContextMenu(x: number, y: number): void {
   const row = contextRow !== null ? state.rows[contextRow] : null;
-  const hasMultipleRows = contextRow !== null && selectedRows.size > 1 && selectedRows.has(contextRow);
+  const hasMultipleRows = contextRow !== null && selection.getSelectedRows().size > 1 && selection.hasSelectedRow(contextRow);
   const editLabelButton = elements.rowMenu.querySelector<HTMLButtonElement>('[data-row-action="edit-label"]');
   if (editLabelButton) {
     editLabelButton.textContent = row?.label ? "Edit label" : "Add label";
@@ -796,7 +730,7 @@ function onInstructionContextMenu(event: MouseEvent): void {
   event.preventDefault();
   const target = event.currentTarget as HTMLElement;
   contextRow = Number(target.dataset.row);
-  if (!selectedRows.has(contextRow)) setSingleRowSelection(contextRow);
+  if (!selection.hasSelectedRow(contextRow)) setSingleRowSelection(contextRow);
   hideContextMenu();
   autocomplete.hide();
   showRowContextMenu(event.clientX, event.clientY);
@@ -855,12 +789,12 @@ function clearInstruction(rowIndex: number): void {
 }
 
 function copyInstruction(rowIndex: number): void {
-  if (selectedRows.size > 1) return;
+  if (selection.getSelectedRows().size > 1) return;
   copiedInstruction = state.rows[rowIndex].instruction;
 }
 
 function cutInstruction(rowIndex: number): void {
-  if (selectedRows.size > 1) return;
+  if (selection.getSelectedRows().size > 1) return;
   copyInstruction(rowIndex);
   clearInstruction(rowIndex);
 }
@@ -876,112 +810,27 @@ function pasteInstruction(rowIndex: number): void {
 }
 
 function startArrow(pos: CellPosition): void {
-  if (state.rows[pos.row].cells[pos.cycle].struck) return;
-  expandDraft = { from: null };
-  arrowDraft = { from: { ...pos } };
-  arrowHoverTarget = null;
-  refreshCellClasses();
-  renderSelectionInfo();
+  arrowsAndExpansion.startArrow(pos);
 }
 
 function startExpand(pos: CellPosition): void {
-  if (!canStartExpand(pos)) return;
-  cancelArrowDraft();
-  expandDraft = { from: { ...pos } };
-  refreshCellClasses();
-  renderSelectionInfo();
+  arrowsAndExpansion.startExpand(pos);
 }
 
 function removeArrowsFrom(pos: CellPosition): void {
-  if (removeOutgoingArrows(pos)) {
-    render();
-    scheduleSave();
-  }
-}
-
-function tryCreateArrowTo(to: CellPosition): void {
-  const from = arrowDraft.from;
-  if (!from) return;
-  autocomplete.hide();
-  if (state.rows[from.row].cells[from.cycle].struck) {
-    cancelArrowDraft();
-    refreshCellClasses();
-    return;
-  }
-  if (!isValidArrowTarget(from, to, state)) {
-    cancelArrowDraft();
-    refreshCellClasses();
-    showStatus("Invalid target");
-    window.setTimeout(() => {
-      showStatus("");
-    }, 1400);
-    return;
-  }
-  state.arrows.push({ from: { ...from }, to: { ...to }, label: "" });
-  cancelArrowDraft();
-  render();
-  scheduleSave();
+  arrowsAndExpansion.removeArrowsFrom(pos);
 }
 
 function cancelArrowDraft(): void {
-  arrowDraft = { from: null };
-  arrowHoverTarget = null;
-}
-
-async function tryExpandTo(to: CellPosition): Promise<void> {
-  const from = expandDraft.from;
-  if (!from) return;
-  if (to.row !== from.row || to.cycle <= from.cycle) {
-    showStatus("Invalid target");
-    window.setTimeout(() => {
-      showStatus("");
-    }, 1400);
-    expandDraft = { from: null };
-    refreshCellClasses();
-    return;
-  }
-
-  const values = makeExpansionValues(state, from, to);
-  if (!values) {
-    expandDraft = { from: null };
-    refreshCellClasses();
-    return;
-  }
-
-  if (
-    wouldChangeFilledCells(state, from, values) &&
-    !(await showConfirm("Overwrite cells", "Expansion will overwrite filled cells. Continue?", "Overwrite"))
-  ) {
-    expandDraft = { from: null };
-    refreshCellClasses();
-    return;
-  }
-
-  values.forEach((text, offset) => {
-    const cell = state.rows[from.row].cells[from.cycle + offset];
-    cell.text = text;
-    cell.struck = false;
-    const input = getCellElement({ row: from.row, cycle: from.cycle + offset });
-    if (input) input.value = text;
-  });
-  expandDraft = { from: null };
-  render();
-  scheduleSave();
+  arrowsAndExpansion.cancelArrowDraft();
 }
 
 function canStartExpand(pos: CellPosition): boolean {
-  return canStartExpandStage(state, pos);
-}
-
-async function removeArrow(index: number): Promise<void> {
-  if (!(await showConfirm("Delete arrow", "Delete this arrow?", "Delete"))) return;
-  state.arrows.splice(index, 1);
-  render();
-  scheduleSave();
+  return arrowsAndExpansion.canStartExpand(pos);
 }
 
 function drawArrows(): void {
-  drawArrowLayer(elements.cycleViewport, elements.arrowLayer, state, getCellElement, removeArrow);
+  arrowsAndExpansion.drawArrows();
 }
 
 function getCellElement(pos: CellPosition): HTMLInputElement | null {
@@ -993,7 +842,7 @@ function renderSelectionInfo(): void {
 }
 
 function acceptSuggestion(value: string): void {
-  const pos = autocomplete.active.pos || selectedCell;
+  const pos = autocomplete.active.pos || selection.getSelectedCell();
   if (!pos) return;
   const cell = state.rows[pos.row].cells[pos.cycle];
   cell.text = value;
@@ -1013,110 +862,31 @@ function hideAutocompleteIfFocusLeftCells(): void {
   autocomplete.hide();
 }
 
-async function showExport(format: ExportFormat): Promise<void> {
-  if (format === "png") {
-    await downloadPngExport();
-    return;
-  }
-  const output = createTextExportFile(state, format).content;
-  activeTextExportFormat = format;
-  elements.exportOutput.value = output;
-  elements.exportModal.setAttribute("aria-hidden", "false");
-}
-
-function downloadTextExport(): void {
-  if (!activeTextExportFormat) return;
-  const file = createTextExportFile(state, activeTextExportFormat);
-  const blob = new Blob([elements.exportOutput.value], { type: file.mimeType });
-  downloadBlob(blob, `${makeDownloadSlug(state.title || "pipeline-table")}.${file.extension}`);
-  showStatus("File exported");
-}
-
-async function downloadPngExport(): Promise<void> {
-  try {
-    const blob = await exportPng(state);
-    downloadBlob(blob, `${makeDownloadSlug(state.title || "pipeline-table")}.png`);
-    showStatus("PNG exported");
-  } catch (error) {
-    await showNotice("PNG export failed", error instanceof Error ? error.message : String(error));
-  }
-}
-
-function hideExport(): void {
-  activeTextExportFormat = null;
-  elements.exportModal.setAttribute("aria-hidden", "true");
-}
-
-function toggleExportMenu(): void {
-  const isOpen = elements.exportMenu.getAttribute("aria-hidden") === "false";
-  elements.exportMenu.setAttribute("aria-hidden", isOpen ? "true" : "false");
-  elements.exportMenuBtn.setAttribute("aria-expanded", isOpen ? "false" : "true");
-}
-
-function hideExportMenu(): void {
-  elements.exportMenu.setAttribute("aria-hidden", "true");
-  elements.exportMenuBtn.setAttribute("aria-expanded", "false");
-}
-
-async function importJson(): Promise<void> {
-  try {
-    const raw = JSON.parse(elements.importInput.value) as Partial<AppState>;
-    state = normalizeState(raw);
-    pruneArrowsFromStruckCells();
-    selectedCell = null;
-    clearSelection();
-    cancelArrowDraft();
-    expandDraft = { from: null };
-    render();
-    saveState(true);
-  } catch (error) {
-    await showNotice("Invalid JSON", error instanceof Error ? error.message : String(error));
-  }
-}
-
-async function copyExport(): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(elements.exportOutput.value);
-    showStatus("Copied");
-  } catch {
-    elements.exportOutput.focus();
-    elements.exportOutput.select();
-    showStatus("Select and copy");
-  }
-}
-
 async function clearAll(): Promise<void> {
   if (!(await showConfirm("Clear table", "Clear the whole table?", "Clear"))) return;
   state = createDefaultState();
-  selectedCell = null;
+  selection.setSelectedCell(null);
   clearSelection();
   cancelArrowDraft();
-  expandDraft = { from: null };
+  arrowsAndExpansion.cancelExpandDraft();
   render();
   saveState(true);
 }
 
 function removeOutgoingArrows(pos: CellPosition): boolean {
-  return removeOutgoingArrowsFromState(state, pos);
+  return arrowsAndExpansion.removeOutgoingArrows(pos);
 }
 
 function pruneArrowsFromStruckCells(): boolean {
   return pruneStruckCellArrows(state);
 }
 
-function scheduleSave(): void {
-  showStatus("");
-  window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => saveState(false), 250);
-}
-
-function saveState(manual: boolean): void {
-  saveStateToStorage(state);
-  showStatus(manual ? "Guardado" : "");
-  window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
-    showStatus("");
-  }, 1400);
+function resetAfterStateImport(): void {
+  pruneArrowsFromStruckCells();
+  selection.setSelectedCell(null);
+  clearSelection();
+  cancelArrowDraft();
+  arrowsAndExpansion.cancelExpandDraft();
 }
 
 function showStatus(message: string): void {
@@ -1126,11 +896,11 @@ function showStatus(message: string): void {
 
 function cancelTransientUi(): void {
   cancelArrowDraft();
-  expandDraft = { from: null };
+  arrowsAndExpansion.cancelExpandDraft();
   hideContextMenu();
   hideRowContextMenu();
   autocomplete.hide();
-  hideExport();
+  exportImport.hideExport();
   hideLabelModal();
   closeConfirmModal(false);
   refreshCellClasses();
@@ -1147,18 +917,18 @@ elements.cyclesInput.addEventListener("change", () => {
 elements.instructionsInput.addEventListener("input", applyInstructions);
 elements.exportMenuBtn.addEventListener("click", (event) => {
   event.stopPropagation();
-  toggleExportMenu();
+  exportImport.toggleExportMenu();
 });
 elements.exportMenu.addEventListener("click", (event) => {
   const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("button[data-export-format]") : null;
   if (!button) return;
-  hideExportMenu();
-  void showExport(button.dataset.exportFormat as ExportFormat);
+  exportImport.hideExportMenu();
+  void exportImport.showExport(button.dataset.exportFormat as ExportFormat);
 });
-elements.copyExportBtn.addEventListener("click", copyExport);
-elements.downloadExportBtn.addEventListener("click", downloadTextExport);
+elements.copyExportBtn.addEventListener("click", exportImport.copyExport);
+elements.downloadExportBtn.addEventListener("click", exportImport.downloadTextExport);
 elements.importBtn.addEventListener("click", () => {
-  void importJson();
+  void exportImport.importJson();
 });
 elements.clearBtn.addEventListener("click", () => {
   void clearAll();
@@ -1171,9 +941,9 @@ elements.expandSidebarBtn.addEventListener("click", () => {
   elements.layoutRoot.classList.remove("sidebar-collapsed");
   window.requestAnimationFrame(drawArrows);
 });
-elements.closeExportBtn.addEventListener("click", hideExport);
+elements.closeExportBtn.addEventListener("click", exportImport.hideExport);
 elements.exportModal.addEventListener("click", (event) => {
-  if (event.target === elements.exportModal) hideExport();
+  if (event.target === elements.exportModal) exportImport.hideExport();
 });
 elements.saveLabelBtn.addEventListener("click", saveRowLabel);
 elements.cancelLabelBtn.addEventListener("click", hideLabelModal);
@@ -1218,7 +988,7 @@ document.addEventListener("click", (event) => {
   if (event.target instanceof Node && !elements.cellMenu.contains(event.target)) hideContextMenu();
   if (event.target instanceof Node && !elements.rowMenu.contains(event.target)) hideRowContextMenu();
   if (event.target instanceof Node && !elements.exportMenu.contains(event.target) && event.target !== elements.exportMenuBtn) {
-    hideExportMenu();
+    exportImport.hideExportMenu();
   }
 });
 document.addEventListener("keydown", (event) => {
