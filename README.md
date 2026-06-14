@@ -84,7 +84,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run test:all`: unit, integration, and browser smoke tests.
 - `npm run test:smoke`: browser smoke test.
 
-`npm run audit:file-sizes` is currently expected to fail because the active refactor intentionally tracks three known oversized files: `app/src/main.ts`, `app/src/styles.css`, and `app/tests/browser-smoke.ts`. Treat that failure as the architecture backlog, not as a runtime regression.
+`npm run audit:file-sizes` is currently expected to fail because the active refactor intentionally tracks two known oversized files: `app/src/main.ts` and `app/src/styles.css`. Treat that failure as the architecture backlog, not as a runtime regression.
 
 ## Architecture And Refactor Policy
 

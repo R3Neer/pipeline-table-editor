@@ -669,7 +669,6 @@ The current expected failures are intentional architecture backlog items:
 
 - `src/main.ts`
 - `src/styles.css`
-- `tests/browser-smoke.ts`
 
 The audit does not include Markdown reference documents because long-form documentation can be valid when it remains well sectioned and easy to scan.
 

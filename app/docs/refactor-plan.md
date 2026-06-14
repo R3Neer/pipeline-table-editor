@@ -20,7 +20,6 @@ Allowed code exceptions must explain why the file is large and what would make i
 | --- | --- | --- |
 | `app/src/main.ts` | Application coordinator still owns rendering, editing flows, menus, labels, and event wiring. | Continue extracting cohesive `app/` controllers and view helpers. |
 | `app/src/styles.css` | Global stylesheet mixes table, layout, menus, modals, export panel, and visual states. | Split by visual domain while preserving selectors and UX. |
-| `app/tests/browser-smoke.ts` | One large scenario file mixes browser setup, helpers, and many behavioral scenarios. | Split into smoke runner, app driver, fixtures, and scenarios. |
 | `app/src/core/autocomplete.ts` | Autocomplete mixes providers, ranking, stage progression, history, and numbering rules. | Introduce small providers and ranking functions. |
 | `app/src/export/image.ts` | PNG export mixes metrics, rendering, theme, text drawing, cells, and arrows. | Split into layout, drawing, theme, and orchestration modules. |
 | `app/src/core/validation.ts` | Still manageable, but new validation rules will make it grow quickly. | Prepare rule-level modules before adding more rules. |
@@ -28,6 +27,7 @@ Allowed code exceptions must explain why the file is large and what would make i
 Recently resolved hotspot:
 
 - `app/src/ui/dom.ts` no longer mixes DOM lookup with assembly highlighting. Assembly presentation now lives in `app/src/ui/assemblyHighlight.ts`.
+- `app/tests/browser-smoke.ts` has been split into a smoke runner, browser app harness, editor driver, assertion helpers, and focused scenario files under `app/tests/smoke/`.
 
 ## Current Audit Status
 
@@ -37,7 +37,6 @@ Known `>500` files:
 
 - `app/src/main.ts`
 - `app/src/styles.css`
-- `app/tests/browser-smoke.ts`
 
 ## Refactor Phases
 
@@ -53,10 +52,10 @@ Known `>500` files:
 4. Split `styles.css` into visual domains without changing visible behavior.
 5. Split autocomplete into provider/ranking modules.
 6. Split PNG export into layout/render/theme/orchestration modules.
-7. Split tests by contract and scenario.
+7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to split `app/tests/browser-smoke.ts` into an app driver, fixtures, and scenario files before performing the next large `main.ts` extraction. Cleaner smoke coverage will make the following app/UI refactors safer.
+The recommended next phase is to extract context-menu and label-modal responsibilities from `app/src/main.ts`, then run the full verification suite before touching row/cell editing.
 
 ## Multi-Agent Team
 
