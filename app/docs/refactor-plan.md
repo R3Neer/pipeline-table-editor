@@ -29,6 +29,7 @@ Recently resolved hotspot:
 - `app/src/main.ts` no longer owns context-menu visibility/action dispatch or row-label modal state; those live in `app/src/app/contextMenuController.ts` and `app/src/app/labelModalController.ts`.
 - `app/src/main.ts` no longer owns instruction-row add/remove/move/edit actions or row clipboard state; those live in `app/src/app/rowEditingController.ts`.
 - `app/src/main.ts` no longer owns stage-cell handlers, keyboard navigation, autocomplete acceptance, simple cell actions, or cell clipboard state; those live in `app/src/app/cellEditingController.ts`.
+- `app/src/app/cellEditingController.ts` no longer owns simple cell action implementation or clipboard state; those live in `app/src/app/cellActionController.ts`.
 - `app/src/main.ts` no longer owns bulk table workflows, global event binding, textarea resize binding, or small table DOM helpers. Those live in `app/src/app/tableWorkflowController.ts`, `app/src/app/appEventBindings.ts`, `app/src/ui/instructionColumnWidth.ts`, and `app/src/ui/tableElements.ts`.
 - `app/src/styles.css` has been split into visual-domain stylesheets under `app/src/styles/`, with the original file kept as the import entrypoint.
 
@@ -55,7 +56,7 @@ Known `>500` files: none.
 7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to review the remaining `>300` warnings, starting with `app/src/core/autocomplete.ts`, `app/src/export/image.ts`, `app/src/app/cellEditingController.ts`, and `app/src/styles/table.css`.
+The recommended next phase is to review the remaining `>300` warnings, starting with `app/src/core/autocomplete.ts`, `app/src/export/image.ts`, and `app/src/main.ts`.
 
 ## Multi-Agent Team
 

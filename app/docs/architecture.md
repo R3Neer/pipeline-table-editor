@@ -31,6 +31,7 @@ app/src/
 │  ├─ appContext.ts
 │  ├─ appEventBindings.ts
 │  ├─ arrowAndExpansionController.ts
+│  ├─ cellActionController.ts
 │  ├─ cellEditingController.ts
 │  ├─ contextMenuController.ts
 │  ├─ exportImportController.ts
@@ -136,6 +137,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Event binding | `app/appEventBindings.ts` | Wires global DOM events to controllers and keeps listener details out of the composition root. |
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
 | Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
+| Cell action controller | `app/cellActionController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
 | Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM handlers, keyboard navigation, autocomplete acceptance, simple cell actions, and cell clipboard state. |
 | Context menu controller | `app/contextMenuController.ts` | Owns cell/row context-menu state, menu visibility, action availability, submenu positioning, and action dispatch through callbacks. |
 | Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |

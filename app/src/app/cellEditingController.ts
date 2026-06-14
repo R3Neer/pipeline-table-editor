@@ -2,7 +2,7 @@ import { samePos } from "../core/arrows";
 import type { AppState, CellPosition } from "../core/model";
 import { normalizeCellText } from "../core/validation";
 import { getInputPosition } from "../ui/dom";
-import type { CopiedCell } from "./sessionTypes";
+import { createCellActionController } from "./cellActionController";
 import type { SelectionController } from "./selectionController";
 
 export interface CellEditingController {
@@ -72,7 +72,16 @@ export function createCellEditingController({
   drawArrows,
   removeOutgoingArrows
 }: CellEditingControllerOptions): CellEditingController {
-  let copiedCell: CopiedCell | null = null;
+  const actions = createCellActionController({
+    selection,
+    getState,
+    getCellElement,
+    hideAutocomplete: autocomplete.hide,
+    refreshCellClasses,
+    scheduleSave,
+    drawArrows,
+    removeOutgoingArrows
+  });
 
   function onCellInput(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
@@ -180,12 +189,12 @@ export function createCellEditingController({
     }
     if (event.key === "Delete") {
       event.preventDefault();
-      clearCell(pos);
+      actions.clearCell(pos);
       return;
     }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
       event.preventDefault();
-      toggleStrike(pos);
+      actions.toggleStrike(pos);
       return;
     }
     if (event.key === "Escape") {
@@ -212,66 +221,6 @@ export function createCellEditingController({
     const activeElement = document.activeElement;
     if (activeElement instanceof HTMLInputElement && activeElement.classList.contains("stage-input")) return;
     autocomplete.hide();
-  }
-
-  function toggleStrike(pos = selection.getSelectedCell()): void {
-    if (!pos) return;
-    const state = getState();
-    const cell = state.rows[pos.row].cells[pos.cycle];
-    cell.struck = !cell.struck;
-    if (cell.struck) removeOutgoingArrows(pos);
-    refreshCellClasses();
-    scheduleSave();
-    window.requestAnimationFrame(drawArrows);
-  }
-
-  function clearCell(pos = selection.getSelectedCell()): void {
-    if (!pos) return;
-    const state = getState();
-    getActionTargets(pos, state).forEach((target) => {
-      const cell = state.rows[target.row].cells[target.cycle];
-      cell.text = "";
-      cell.struck = false;
-      const input = getCellElement(target);
-      if (input) input.value = "";
-    });
-    autocomplete.hide();
-    refreshCellClasses();
-    scheduleSave();
-    window.requestAnimationFrame(drawArrows);
-  }
-
-  function copyCell(pos = selection.getSelectedCell()): void {
-    if (!pos || selection.isMultiSelection()) return;
-    const cell = getState().rows[pos.row].cells[pos.cycle];
-    copiedCell = { text: cell.text, struck: cell.struck };
-  }
-
-  function cutCell(pos = selection.getSelectedCell()): void {
-    if (!pos || selection.isMultiSelection()) return;
-    copyCell(pos);
-    clearCell(pos);
-  }
-
-  function pasteCell(pos = selection.getSelectedCell()): void {
-    if (!pos || !copiedCell) return;
-    const state = getState();
-    const sourceCell = copiedCell;
-    getActionTargets(pos, state).forEach((target) => {
-      const cell = state.rows[target.row].cells[target.cycle];
-      cell.text = sourceCell.text;
-      cell.struck = sourceCell.struck;
-      if (cell.struck) removeOutgoingArrows(target);
-      const input = getCellElement(target);
-      if (input) input.value = cell.text;
-    });
-    refreshCellClasses();
-    scheduleSave();
-    window.requestAnimationFrame(drawArrows);
-  }
-
-  function getActionTargets(fallback: CellPosition, state: AppState): CellPosition[] {
-    return selection.getCellActionTargets(fallback, state);
   }
 
   function focusRelativeCell(pos: CellPosition, offset: number): void {
@@ -309,10 +258,10 @@ export function createCellEditingController({
     onCellKeyDown,
     acceptSuggestion,
     hideAutocompleteIfFocusLeftCells,
-    toggleStrike,
-    clearCell,
-    copyCell,
-    cutCell,
-    pasteCell
+    toggleStrike: actions.toggleStrike,
+    clearCell: actions.clearCell,
+    copyCell: actions.copyCell,
+    cutCell: actions.cutCell,
+    pasteCell: actions.pasteCell
   };
 }
