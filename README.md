@@ -92,3 +92,8 @@ Labels and separators are manual annotations. They are exported in JSON, Markdow
 ## Release
 
 Initial GitHub-ready version: `v0.1.0`.
+
+GitHub Pages is deployed automatically when a GitHub release is published. The
+workflow builds `app/dist/` and publishes it as the Pages site. In the
+repository settings, set **Pages > Build and deployment > Source** to
+**GitHub Actions**.
