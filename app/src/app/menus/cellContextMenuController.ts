@@ -27,6 +27,16 @@ export function createCellContextMenuController({
   actions
 }: CellContextMenuControllerOptions): CellContextMenuController {
   let contextCell: CellPosition | null = null;
+  const commands: Record<ContextAction, (pos: CellPosition) => void> = {
+    arrow: actions.startArrow,
+    "remove-arrows": actions.removeArrowsFrom,
+    strike: actions.toggleStrike,
+    expand: actions.startExpand,
+    copy: actions.copyCell,
+    cut: actions.cutCell,
+    paste: actions.pasteCell,
+    clear: actions.clearCell
+  };
 
   function openCellMenu(pos: CellPosition, x: number, y: number): void {
     contextCell = pos;
@@ -71,14 +81,7 @@ export function createCellContextMenuController({
 
   function handleCellAction(action: ContextAction): void {
     if (!contextCell) return;
-    if (action === "arrow") actions.startArrow(contextCell);
-    if (action === "remove-arrows") actions.removeArrowsFrom(contextCell);
-    if (action === "strike") actions.toggleStrike(contextCell);
-    if (action === "expand") actions.startExpand(contextCell);
-    if (action === "copy") actions.copyCell(contextCell);
-    if (action === "cut") actions.cutCell(contextCell);
-    if (action === "paste") actions.pasteCell(contextCell);
-    if (action === "clear") actions.clearCell(contextCell);
+    commands[action](contextCell);
     hideCellMenu();
   }
 

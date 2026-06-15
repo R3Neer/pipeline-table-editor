@@ -25,6 +25,15 @@ export function createRowContextMenuController({
   actions
 }: RowContextMenuControllerOptions): RowContextMenuController {
   let contextRow: number | null = null;
+  const commands: Record<RowContextAction, (rowIndex: number) => void> = {
+    "edit-label": actions.editRowLabel,
+    "remove-label": actions.removeRowLabel,
+    "toggle-separator": actions.toggleRowSeparator,
+    copy: actions.copyInstruction,
+    cut: actions.cutInstruction,
+    paste: actions.pasteInstruction,
+    clear: actions.clearInstruction
+  };
 
   function openRowMenu(rowIndex: number, x: number, y: number): void {
     contextRow = rowIndex;
@@ -63,13 +72,7 @@ export function createRowContextMenuController({
 
   function handleRowAction(action: RowContextAction): void {
     if (contextRow === null) return;
-    if (action === "edit-label") actions.editRowLabel(contextRow);
-    if (action === "remove-label") actions.removeRowLabel(contextRow);
-    if (action === "toggle-separator") actions.toggleRowSeparator(contextRow);
-    if (action === "copy") actions.copyInstruction(contextRow);
-    if (action === "cut") actions.cutInstruction(contextRow);
-    if (action === "paste") actions.pasteInstruction(contextRow);
-    if (action === "clear") actions.clearInstruction(contextRow);
+    commands[action](contextRow);
     hideRowMenu();
   }
 

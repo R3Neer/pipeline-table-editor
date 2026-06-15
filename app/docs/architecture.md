@@ -225,6 +225,7 @@ Styles are split by visual responsibility. `styles/tokens.css` owns theme variab
 The project uses patterns only where they remove real coupling:
 
 - `app/*Controller.ts` modules are small Controllers/Facades around cohesive workflows. They reduce `main.ts` coupling without introducing framework state or class-heavy architecture.
+- Cell and row context menus use a small Command map: menu action ids dispatch to typed command functions instead of growing conditional action chains.
 - `ui/splitTable.ts` acts as a small Mediator between the instruction pane and the cycle viewport. Vertical scrolling, row-height synchronization, and overflow state are coordinated there so `main.ts` does not need to know the mechanics of the split table.
 - `core/autocomplete.ts` is a Facade over Strategy-like suggestion providers in `core/autocompleteProviders.ts`; ranking, context building, history heuristics, row numbering, and candidate validation are separate modules. New suggestion providers can be added without changing unrelated presentation code.
 - `core/validation.ts` uses a Strategy-like rule pipeline. New validation rules can be added without changing presentation code.
@@ -234,7 +235,7 @@ The project uses patterns only where they remove real coupling:
 Architectural review notes:
 
 - Priority 1: keep extracting cohesive controllers from `main.ts`, especially context menus and cell/row editing. These are Controller/Facade opportunities with low risk and clear review boundaries.
-- Priority 2: consider a small command registry only if context-menu actions continue to grow. Today, a full Command pattern would mostly move simple `if` statements into a map.
+- Priority 2: keep context-menu actions as small Command maps. Do not promote them to class-based Command objects unless actions need undo/redo, logging, enablement policies, or shared execution middleware.
 - Priority 3: consider a dedicated table view module once editing controllers are smaller. `renderTable()` remains the next large presentation responsibility.
 - Avoid introducing an event bus for now. Explicit callbacks and narrow context objects make dependencies easier to audit in a framework-free app.
 
