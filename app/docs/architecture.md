@@ -38,6 +38,7 @@ app/src/
 │  ├─ contextMenuController.ts
 │  ├─ exportImportController.ts
 │  ├─ expansionDraftController.ts
+│  ├─ instructionEditorRenderer.ts
 │  ├─ labelModalController.ts
 │  ├─ modalController.ts
 │  ├─ persistenceController.ts
@@ -156,7 +157,8 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
 | Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
 | Selection UI controller | `app/selectionUiController.ts` | Coordinates DOM class refreshes after selection state changes without moving selection rules into the renderer. |
-| Table renderer | `app/tableRenderer.ts` | Builds the instruction pane, cycle table, inline row controls, assembly highlighting, and stage-cell inputs. |
+| Table renderer | `app/tableRenderer.ts` | Builds the split table structure and stage-cell inputs, delegating instruction-row editing UI to `app/instructionEditorRenderer.ts`. |
+| Instruction editor renderer | `app/instructionEditorRenderer.ts` | Builds inline instruction editors, assembly highlighting, row labels, row buttons, and the inline add-row control. |
 | Cell action controller | `app/cellActionController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
 | Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM input/focus/click/hover/context-menu handlers and delegates keyboard/action details. |
 | Cell keyboard controller | `app/cellKeyboardController.ts` | Owns stage-cell keyboard navigation, autocomplete acceptance, Delete, and strike shortcuts. |
