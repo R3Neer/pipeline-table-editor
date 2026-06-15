@@ -83,7 +83,9 @@ app/src/
 │  ├─ state.ts
 │  ├─ useCases/
 │  │  └─ tableEditing.ts
-│  └─ validation.ts
+│  ├─ validation.ts
+│  ├─ validationRules.ts
+│  └─ validationTypes.ts
 ├─ integration/
 │  └─ storage.ts
 ├─ export/
@@ -182,7 +184,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Row labels | `core/labels.ts` | Normalizes labels and assigns stable, subdued colors. |
 | Stage syntax | `core/stage.ts` | Normalizes and parses stage text such as `IF`, `EX2`, or `IDp`. |
 | Autocomplete rules | `core/autocomplete*.ts` | Builds ranked stage suggestions through a small facade plus provider, ranking, context, history, row-analysis, validation, and type modules. |
-| Validation | `core/validation.ts` | Applies visual error rules for stage order, missing previous stages, and pending `p` suffixes. |
+| Validation | `core/validation*.ts` | Applies visual error rules through a validation facade, shared validation types, and default rule modules. |
 | Arrow rules | `core/arrows.ts` | Validates forwarding arrow shape, target constraints, duplicate incoming targets, and row remapping. |
 | Row rules | `core/rows.ts` | Moves and removes instruction rows, remaps arrows, and computes row action targets for single or multi-row selection. |
 | Expansion | `core/expansion.ts` | Computes `Expand` results and whether filled cells would actually change. |
@@ -294,7 +296,7 @@ Each cell stores only user-authored stage text and whether it is struck through.
 
 ## Stage Parsing And Validation
 
-Stage parsing is centralized in `core/stage.ts`. Higher-level stage validation lives in `core/validation.ts` as a `CellValidationRule[]` pipeline.
+Stage parsing is centralized in `core/stage.ts`. Higher-level stage validation is exposed through `core/validation.ts`, with shared contracts in `core/validationTypes.ts` and default rules in `core/validationRules.ts` as a `CellValidationRule[]` pipeline.
 
 Accepted stage roots:
 
@@ -735,7 +737,7 @@ The audit does not include Markdown reference documents because long-form docume
 Keep these boundaries when adding new features:
 
 - Add stage syntax and parsing rules in `core/stage.ts`.
-- Add validation rules in `core/validation.ts`.
+- Add validation rules in `core/validationRules.ts`; keep the validation engine and public reexports in `core/validation.ts`.
 - Add autocomplete candidate behavior as a `SuggestionProvider` in `core/autocompleteProviders.ts`; keep ordering behavior in `core/autocompleteRanking.ts` and candidate validity checks in `core/autocompleteValidation.ts`.
 - Add forwarding-arrow constraints in `core/arrows.ts`.
 - Add deterministic table-editing workflows in `core/useCases/`.

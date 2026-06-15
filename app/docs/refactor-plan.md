@@ -18,7 +18,7 @@ Allowed code exceptions must explain why the file is large and what would make i
 
 | File | Current concern | Direction |
 | --- | --- | --- |
-| `app/src/core/validation.ts` | Still manageable, but new validation rules will make it grow quickly. | Prepare rule-level modules before adding more rules. |
+| `app/src/core/validationRules.ts` | Rule list is manageable today, but new validation modes can make it grow. | Keep individual rules cohesive and split rule families when the list stops being easy to scan. |
 
 Recently resolved hotspot:
 
@@ -37,6 +37,7 @@ Recently resolved hotspot:
 - `app/src/app/arrowAndExpansionController.ts` is now a facade over `app/src/app/arrowDraftController.ts` and `app/src/app/expansionDraftController.ts`.
 - `app/src/app/tableRenderer.ts` no longer owns inline instruction editor rendering. That lives in `app/src/app/instructionEditorRenderer.ts`.
 - `app/src/app/contextMenuController.ts` is now a facade over `app/src/app/cellContextMenuController.ts` and `app/src/app/rowContextMenuController.ts`.
+- `app/src/core/validation.ts` is now a validation facade; default rules live in `app/src/core/validationRules.ts` and shared contracts in `app/src/core/validationTypes.ts`.
 
 ## Current Audit Status
 
