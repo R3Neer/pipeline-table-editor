@@ -33,15 +33,18 @@ app/src/
 │  ├─ arrowAndExpansionController.ts
 │  ├─ arrowDraftController.ts
 │  ├─ cellActionController.ts
+│  ├─ cellContextMenuController.ts
 │  ├─ cellEditingController.ts
 │  ├─ cellKeyboardController.ts
 │  ├─ contextMenuController.ts
+│  ├─ contextMenuTypes.ts
 │  ├─ exportImportController.ts
 │  ├─ expansionDraftController.ts
 │  ├─ instructionEditorRenderer.ts
 │  ├─ labelModalController.ts
 │  ├─ modalController.ts
 │  ├─ persistenceController.ts
+│  ├─ rowContextMenuController.ts
 │  ├─ rowEditingController.ts
 │  ├─ selectionController.ts
 │  ├─ selectionUiController.ts
@@ -162,7 +165,9 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Cell action controller | `app/cellActionController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
 | Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM input/focus/click/hover/context-menu handlers and delegates keyboard/action details. |
 | Cell keyboard controller | `app/cellKeyboardController.ts` | Owns stage-cell keyboard navigation, autocomplete acceptance, Delete, and strike shortcuts. |
-| Context menu controller | `app/contextMenuController.ts` | Owns cell/row context-menu state, menu visibility, action availability, submenu positioning, and action dispatch through callbacks. |
+| Context menu facade | `app/contextMenuController.ts` | Keeps the public context-menu API stable while composing cell and row menu controllers plus submenu positioning. |
+| Cell context menu controller | `app/cellContextMenuController.ts` | Owns cell context-menu state, action visibility, and cell action dispatch. |
+| Row context menu controller | `app/rowContextMenuController.ts` | Owns row context-menu state, row action visibility, and row action dispatch. |
 | Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |
 | Label modal controller | `app/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |
 | Persistence controller | `app/persistenceController.ts` | Debounces saves and delegates actual storage to `integration/storage.ts`. |

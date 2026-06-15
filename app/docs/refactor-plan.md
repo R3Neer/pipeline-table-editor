@@ -36,6 +36,7 @@ Recently resolved hotspot:
 - `app/src/app/cellEditingController.ts` no longer owns keyboard navigation or autocomplete acceptance. Those live in `app/src/app/cellKeyboardController.ts`.
 - `app/src/app/arrowAndExpansionController.ts` is now a facade over `app/src/app/arrowDraftController.ts` and `app/src/app/expansionDraftController.ts`.
 - `app/src/app/tableRenderer.ts` no longer owns inline instruction editor rendering. That lives in `app/src/app/instructionEditorRenderer.ts`.
+- `app/src/app/contextMenuController.ts` is now a facade over `app/src/app/cellContextMenuController.ts` and `app/src/app/rowContextMenuController.ts`.
 
 ## Current Audit Status
 
