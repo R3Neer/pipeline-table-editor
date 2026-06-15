@@ -157,7 +157,7 @@ export async function expectAddRowHoverAutoscrollsAndRestores(page: Page) {
   await page.fill("#instructionsInput", manyInstructions);
   await page.waitForSelector('.stage-input[data-row="17"][data-cycle="0"]');
 
-  const result = await page.evaluate(() => {
+  const setup = await page.evaluate(() => {
     const shell = document.querySelector("#tableShell");
     const zone = document.querySelector(".add-row-zone");
     const button = document.querySelector("#addRowInlineBtn");
@@ -171,25 +171,49 @@ export async function expectAddRowHoverAutoscrollsAndRestores(page: Page) {
     const beforeButtonBottom = button.getBoundingClientRect().bottom;
     const shellBottom = shell.getBoundingClientRect().bottom;
     zone.dispatchEvent(new MouseEvent("mouseenter"));
-    const revealedTop = shell.scrollTop;
-    const revealedButtonBottom = button.getBoundingClientRect().bottom;
-    zone.dispatchEvent(new MouseEvent("mouseleave"));
-    const restoredTop = shell.scrollTop;
 
     return {
       beforeTop,
-      revealedTop,
-      restoredTop,
       wasCutOrTight: beforeButtonBottom > shellBottom - 12,
-      fitsAfterReveal: revealedButtonBottom <= shellBottom - 11
+      shellBottom
     };
   });
 
-  assert.ok(result);
-  assert.equal(result.wasCutOrTight, true);
-  assert.ok(result.revealedTop > result.beforeTop);
-  assert.equal(result.fitsAfterReveal, true);
-  assert.equal(result.restoredTop, result.beforeTop);
+  assert.ok(setup);
+  assert.equal(setup.wasCutOrTight, true);
+  await page.waitForFunction((beforeTop) => {
+    const shell = document.querySelector("#tableShell");
+    const button = document.querySelector("#addRowInlineBtn");
+    return (
+      shell instanceof HTMLElement &&
+      button instanceof HTMLElement &&
+      shell.scrollTop > beforeTop &&
+      button.getBoundingClientRect().bottom <= shell.getBoundingClientRect().bottom - 11
+    );
+  }, setup.beforeTop);
+
+  const revealed = await page.evaluate(() => {
+    const shell = document.querySelector("#tableShell");
+    const button = document.querySelector("#addRowInlineBtn");
+    if (!(shell instanceof HTMLElement) || !(button instanceof HTMLElement)) return null;
+    return {
+      revealedTop: shell.scrollTop,
+      fitsAfterReveal: button.getBoundingClientRect().bottom <= shell.getBoundingClientRect().bottom - 11
+    };
+  });
+
+  assert.ok(revealed);
+  assert.ok(revealed.revealedTop > setup.beforeTop);
+  assert.equal(revealed.fitsAfterReveal, true);
+
+  await page.evaluate(() => {
+    const zone = document.querySelector(".add-row-zone");
+    if (zone instanceof HTMLElement) zone.dispatchEvent(new MouseEvent("mouseleave"));
+  });
+  await page.waitForFunction((beforeTop) => {
+    const shell = document.querySelector("#tableShell");
+    return shell instanceof HTMLElement && Math.abs(shell.scrollTop - beforeTop) <= 1;
+  }, setup.beforeTop);
 
   await page.fill("#instructionsInput", originalInstructions);
   await page.waitForSelector('.stage-input[data-row="2"][data-cycle="0"]');

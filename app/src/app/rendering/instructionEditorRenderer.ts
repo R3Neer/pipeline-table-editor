@@ -32,6 +32,7 @@ interface AddRowHoverScroll {
 }
 
 const addRowHoverBottomMargin = 12;
+const addRowHoverScrollDurationMs = 140;
 
 export function createInstructionEditorRenderer({
   elements,
@@ -46,6 +47,7 @@ export function createInstructionEditorRenderer({
   onInstructionContextMenu
 }: InstructionEditorRendererOptions): InstructionEditorRenderer {
   let addRowHoverScroll: AddRowHoverScroll | null = null;
+  let addRowHoverScrollFrame = 0;
 
   function makeInstructionEditor(rowIndex: number): HTMLElement {
     const state = getState();
@@ -117,6 +119,7 @@ export function createInstructionEditorRenderer({
     button.setAttribute("aria-label", "Add row");
     button.addEventListener("click", () => {
       if (addRowHoverScroll) addRowHoverScroll.committed = true;
+      cancelAddRowHoverScrollAnimation();
       rowEditing.addInstruction();
     });
     zone.addEventListener("mouseenter", () => revealAddRowButton(button));
@@ -127,6 +130,7 @@ export function createInstructionEditorRenderer({
 
   function revealAddRowButton(button: HTMLElement): void {
     addRowHoverScroll = null;
+    cancelAddRowHoverScrollAnimation();
     const shell = elements.tableShell;
     if (shell.scrollHeight <= shell.clientHeight) return;
 
@@ -141,16 +145,55 @@ export function createInstructionEditorRenderer({
     if (nextTop === originalTop) return;
 
     addRowHoverScroll = { top: originalTop, committed: false };
-    shell.scrollTop = nextTop;
-    window.requestAnimationFrame(drawArrows);
+    animateAddRowHoverScroll(nextTop);
   }
 
   function restoreAddRowHoverScroll(): void {
     const scroll = addRowHoverScroll;
     addRowHoverScroll = null;
     if (!scroll || scroll.committed) return;
-    elements.tableShell.scrollTop = scroll.top;
-    window.requestAnimationFrame(drawArrows);
+    animateAddRowHoverScroll(scroll.top);
+  }
+
+  function animateAddRowHoverScroll(targetTop: number): void {
+    cancelAddRowHoverScrollAnimation();
+    const shell = elements.tableShell;
+    const startTop = shell.scrollTop;
+    const distance = targetTop - startTop;
+    if (Math.abs(distance) < 0.5) {
+      shell.scrollTop = targetTop;
+      window.requestAnimationFrame(drawArrows);
+      return;
+    }
+
+    const startedAt = performance.now();
+    const step = (now: number) => {
+      const progress = clamp((now - startedAt) / addRowHoverScrollDurationMs, 0, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      shell.scrollTop = startTop + distance * eased;
+      drawArrows();
+
+      if (progress < 1) {
+        addRowHoverScrollFrame = window.requestAnimationFrame(step);
+        return;
+      }
+
+      shell.scrollTop = targetTop;
+      addRowHoverScrollFrame = 0;
+      drawArrows();
+    };
+
+    addRowHoverScrollFrame = window.requestAnimationFrame(step);
+  }
+
+  function cancelAddRowHoverScrollAnimation(): void {
+    if (!addRowHoverScrollFrame) return;
+    window.cancelAnimationFrame(addRowHoverScrollFrame);
+    addRowHoverScrollFrame = 0;
+  }
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
   function syncAssemblyHighlight(input: HTMLInputElement, highlight: HTMLElement): void {
