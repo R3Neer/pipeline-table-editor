@@ -1,11 +1,11 @@
-import type { AppState, CellPosition } from "../core/model";
+import type { AppState, CellPosition } from "../../core/model";
 import {
   makeRectangularSelection,
   makeVerticalSelection,
   parsePositionKey,
   positionKey
-} from "../core/selection";
-import { getRowActionTargets as getSelectedRowTargets } from "../core/rows";
+} from "../../core/selection";
+import { getRowActionTargets as getSelectedRowTargets } from "../../core/rows";
 
 interface SelectionClickModifiers {
   shiftKey: boolean;
@@ -196,3 +196,4 @@ export function createSelectionController(): SelectionController {
     getRowActionTargets
   };
 }
+

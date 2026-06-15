@@ -1,8 +1,8 @@
-import { samePos } from "../core/arrows";
-import type { AppState, CellPosition } from "../core/model";
-import type { AppElements } from "../ui/dom";
-import type { ContextAction } from "../ui/menuActions";
-import { placeFloatingElement } from "../ui/positioning";
+import { samePos } from "../../core/arrows";
+import type { AppState, CellPosition } from "../../core/model";
+import type { AppElements } from "../../ui/dom";
+import type { ContextAction } from "../../ui/menuActions";
+import { placeFloatingElement } from "../../ui/positioning";
 import type { ContextMenuActions } from "./contextMenuTypes";
 
 interface CellContextMenuControllerOptions {
@@ -84,3 +84,4 @@ export function createCellContextMenuController({
 
   return { openCellMenu, hideCellMenu, bindEvents };
 }
+

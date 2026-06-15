@@ -1,4 +1,4 @@
-import type { CellPosition } from "../core/model";
+import type { CellPosition } from "../../core/model";
 
 export interface ContextMenuActions {
   startArrow(pos: CellPosition): void;
@@ -17,3 +17,4 @@ export interface ContextMenuActions {
   pasteInstruction(rowIndex: number): void;
   clearInstruction(rowIndex: number): void;
 }
+

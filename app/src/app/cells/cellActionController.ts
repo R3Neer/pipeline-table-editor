@@ -1,6 +1,6 @@
-import type { AppState, CellPosition } from "../core/model";
-import type { CopiedCell } from "./sessionTypes";
-import type { SelectionController } from "./selectionController";
+import type { AppState, CellPosition } from "../../core/model";
+import type { CopiedCell } from "../sessionTypes";
+import type { SelectionController } from "../selection/selectionController";
 
 export interface CellActionController {
   toggleStrike(pos?: CellPosition | null): void;
@@ -101,4 +101,5 @@ export function createCellActionController({
     pasteCell
   };
 }
+
 

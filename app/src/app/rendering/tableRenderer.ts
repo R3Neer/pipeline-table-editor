@@ -1,13 +1,13 @@
-import type { AppState } from "../core/model";
-import type { AppElements } from "../ui/dom";
-import { getInputPosition } from "../ui/dom";
-import { updateInstructionColumnWidth } from "../ui/instructionColumnWidth";
-import type { SplitTableController } from "../ui/splitTable";
-import { makeHeader, makeInstructionScrollbarSpacer } from "../ui/tableElements";
-import type { CellEditingController } from "./cellEditingController";
+import type { AppState } from "../../core/model";
+import type { AppElements } from "../../ui/dom";
+import { getInputPosition } from "../../ui/dom";
+import { updateInstructionColumnWidth } from "../../ui/instructionColumnWidth";
+import type { SplitTableController } from "../../ui/splitTable";
+import { makeHeader, makeInstructionScrollbarSpacer } from "../../ui/tableElements";
+import type { CellEditingController } from "../cells/cellEditingController";
 import { createInstructionEditorRenderer } from "./instructionEditorRenderer";
-import type { RowEditingController } from "./rowEditingController";
-import type { SelectionController } from "./selectionController";
+import type { RowEditingController } from "../rows/rowEditingController";
+import type { SelectionController } from "../selection/selectionController";
 
 interface TableRendererOptions {
   elements: AppElements;
@@ -154,3 +154,4 @@ export function createTableRenderer({
     refreshRowSelectionClasses
   };
 }
+

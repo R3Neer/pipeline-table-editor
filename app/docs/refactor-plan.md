@@ -24,25 +24,25 @@ Recently resolved hotspot:
 
 - `app/src/ui/dom.ts` no longer mixes DOM lookup with assembly highlighting. Assembly presentation now lives in `app/src/ui/assemblyHighlight.ts`.
 - `app/tests/browser-smoke.ts` has been split into a smoke runner, browser app harness, editor driver, assertion helpers, and focused scenario files under `app/tests/smoke/`.
-- `app/src/main.ts` no longer owns context-menu visibility/action dispatch or row-label modal state; those live in `app/src/app/contextMenuController.ts` and `app/src/app/labelModalController.ts`.
-- `app/src/main.ts` no longer owns instruction-row add/remove/move/edit actions or row clipboard state; those live in `app/src/app/rowEditingController.ts`.
-- `app/src/main.ts` no longer owns stage-cell handlers, keyboard navigation, autocomplete acceptance, simple cell actions, or cell clipboard state; those live in `app/src/app/cellEditingController.ts`.
-- `app/src/app/cellEditingController.ts` no longer owns simple cell action implementation or clipboard state; those live in `app/src/app/cellActionController.ts`.
-- `app/src/main.ts` no longer owns bulk table workflows, global event binding, textarea resize binding, or small table DOM helpers. Those live in `app/src/app/tableWorkflowController.ts`, `app/src/app/appEventBindings.ts`, `app/src/ui/instructionColumnWidth.ts`, and `app/src/ui/tableElements.ts`.
+- `app/src/main.ts` no longer owns context-menu visibility/action dispatch or row-label modal state; those live in `app/src/app/menus/contextMenuController.ts` and `app/src/app/modals/labelModalController.ts`.
+- `app/src/main.ts` no longer owns instruction-row add/remove/move/edit actions or row clipboard state; those live in `app/src/app/rows/rowEditingController.ts`.
+- `app/src/main.ts` no longer owns stage-cell handlers, keyboard navigation, autocomplete acceptance, simple cell actions, or cell clipboard state; those live in `app/src/app/cells/cellEditingController.ts`.
+- `app/src/app/cells/cellEditingController.ts` no longer owns simple cell action implementation or clipboard state; those live in `app/src/app/cells/cellActionController.ts`.
+- `app/src/main.ts` no longer owns bulk table workflows, global event binding, textarea resize binding, or small table DOM helpers. Those live in `app/src/app/workflows/tableWorkflowController.ts`, `app/src/app/events/appEventBindings.ts`, `app/src/ui/instructionColumnWidth.ts`, and `app/src/ui/tableElements.ts`.
 - `app/src/styles.css` has been split into visual-domain stylesheets under `app/src/styles/`, with the original file kept as the import entrypoint.
 - `app/src/core/autocomplete.ts` is now a facade. Provider rules, ranking, context, history, row-number analysis, validation, and shared types live in focused `app/src/core/autocomplete*.ts` modules.
 - `app/src/export/image.ts` is now a PNG export facade. Metrics, theme, primitives, text drawing, table drawing, and arrow drawing live in focused `app/src/export/image*.ts` modules.
-- `app/src/main.ts` no longer renders the table directly or owns selection-to-DOM refresh logic. Table rendering lives in `app/src/app/tableRenderer.ts`; selection UI refresh coordination lives in `app/src/app/selectionUiController.ts`.
-- `app/src/app/cellEditingController.ts` no longer owns keyboard navigation or autocomplete acceptance. Those live in `app/src/app/cellKeyboardController.ts`.
-- `app/src/app/arrowAndExpansionController.ts` is now a facade over `app/src/app/arrowDraftController.ts` and `app/src/app/expansionDraftController.ts`.
-- `app/src/app/tableRenderer.ts` no longer owns inline instruction editor rendering. That lives in `app/src/app/instructionEditorRenderer.ts`.
-- `app/src/app/contextMenuController.ts` is now a facade over `app/src/app/cellContextMenuController.ts` and `app/src/app/rowContextMenuController.ts`.
+- `app/src/main.ts` no longer renders the table directly or owns selection-to-DOM refresh logic. Table rendering lives in `app/src/app/rendering/tableRenderer.ts`; selection UI refresh coordination lives in `app/src/app/selection/selectionUiController.ts`.
+- `app/src/app/cells/cellEditingController.ts` no longer owns keyboard navigation or autocomplete acceptance. Those live in `app/src/app/cells/cellKeyboardController.ts`.
+- `app/src/app/modes/arrowAndExpansionController.ts` is now a facade over `app/src/app/modes/arrowDraftController.ts` and `app/src/app/modes/expansionDraftController.ts`.
+- `app/src/app/rendering/tableRenderer.ts` no longer owns inline instruction editor rendering. That lives in `app/src/app/rendering/instructionEditorRenderer.ts`.
+- `app/src/app/menus/contextMenuController.ts` is now a facade over `app/src/app/menus/cellContextMenuController.ts` and `app/src/app/menus/rowContextMenuController.ts`.
 - `app/src/core/validation.ts` is now a validation facade; default rules live in `app/src/core/validationRules.ts` and shared contracts in `app/src/core/validationTypes.ts`.
 - `app/src/styles/base.css` no longer owns design tokens. Theme variables and shared dimensions live in `app/src/styles/tokens.css`.
 
 ## Current Audit Status
 
-`npm run audit:file-sizes` is currently expected to pass, with warnings for files over 300 lines. Those warnings keep the largest remaining architecture debt visible while the refactor is underway.
+`npm run audit:file-sizes` is currently expected to pass with no `>300` warnings. Files over 100 lines still appear as `REVIEW` entries so responsibility boundaries remain visible during future refactors.
 
 Known `>500` files: none.
 Known `>300` warnings: none.
@@ -108,3 +108,4 @@ When a phase is large, prefer this sequence:
 3. Run the nearest tests.
 4. Update docs if the architecture boundary changed.
 5. Commit.
+

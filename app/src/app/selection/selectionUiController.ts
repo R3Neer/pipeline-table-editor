@@ -1,5 +1,5 @@
-import type { AppState, CellPosition } from "../core/model";
-import type { SelectionController } from "./selectionController";
+import type { AppState, CellPosition } from "../../core/model";
+import type { SelectionController } from "../selection/selectionController";
 
 interface SelectionUiControllerOptions {
   selection: SelectionController;
@@ -81,3 +81,4 @@ export function createSelectionUiController({
     isMultiSelection
   };
 }
+

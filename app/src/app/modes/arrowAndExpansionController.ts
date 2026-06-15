@@ -1,5 +1,5 @@
-import type { AppState, CellPosition } from "../core/model";
-import type { AppElements } from "../ui/dom";
+import type { AppState, CellPosition } from "../../core/model";
+import type { AppElements } from "../../ui/dom";
 import { createArrowDraftController } from "./arrowDraftController";
 import { createExpansionDraftController } from "./expansionDraftController";
 
@@ -85,3 +85,4 @@ function showTemporaryInvalidTarget(showStatus: (message: string) => void): void
     showStatus("");
   }, 1400);
 }
+

@@ -1,11 +1,11 @@
-import type { AppState } from "../core/model";
-import { createDefaultState } from "../core/state";
+import type { AppState } from "../../core/model";
+import { createDefaultState } from "../../core/state";
 import {
   applyInstructionText,
   changeCycleCount,
   wouldLoseCellsAfterCycleReduction
-} from "../core/useCases/tableEditing";
-import type { AppElements } from "../ui/dom";
+} from "../../core/useCases/tableEditing";
+import type { AppElements } from "../../ui/dom";
 
 export interface TableWorkflowController {
   applyInstructions(): void;
@@ -75,4 +75,5 @@ export function createTableWorkflowController({
     clearAll
   };
 }
+
 

@@ -1,10 +1,10 @@
-import type { AppState, CellPosition } from "../core/model";
-import type { AppElements } from "../ui/dom";
-import { placeSubmenu } from "../ui/positioning";
+import type { AppState, CellPosition } from "../../core/model";
+import type { AppElements } from "../../ui/dom";
+import { placeSubmenu } from "../../ui/positioning";
 import { createCellContextMenuController } from "./cellContextMenuController";
 import type { ContextMenuActions } from "./contextMenuTypes";
 import { createRowContextMenuController } from "./rowContextMenuController";
-import type { SelectionController } from "./selectionController";
+import type { SelectionController } from "../selection/selectionController";
 
 export interface ContextMenuController {
   openCellMenu(pos: CellPosition, x: number, y: number): void;
@@ -81,3 +81,4 @@ function positionContextSubmenu(submenu: HTMLElement): void {
   const side = placeSubmenu(submenu, panel);
   submenu.classList.toggle("submenu-opens-left", side === "left");
 }
+

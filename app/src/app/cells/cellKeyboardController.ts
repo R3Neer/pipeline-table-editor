@@ -1,6 +1,6 @@
-import type { AppState, CellPosition } from "../core/model";
-import { getInputPosition } from "../ui/dom";
-import type { SelectionController } from "./selectionController";
+import type { AppState, CellPosition } from "../../core/model";
+import { getInputPosition } from "../../ui/dom";
+import type { SelectionController } from "../selection/selectionController";
 
 interface CellKeyboardControllerOptions {
   selection: SelectionController;
@@ -126,3 +126,4 @@ export function createCellKeyboardController({
 
   return { onCellKeyDown, acceptSuggestion };
 }
+

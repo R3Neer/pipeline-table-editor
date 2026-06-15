@@ -1,6 +1,6 @@
-import { normalizeRowLabel } from "../core/labels";
-import type { AppState } from "../core/model";
-import type { AppElements } from "../ui/dom";
+import { normalizeRowLabel } from "../../core/labels";
+import type { AppState } from "../../core/model";
+import type { AppElements } from "../../ui/dom";
 
 export interface LabelModalController {
   open(rowIndex: number): void;
@@ -78,4 +78,5 @@ export function createLabelModalController({
     bindEvents
   };
 }
+
 

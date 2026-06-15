@@ -1,9 +1,9 @@
-import { isValidArrowTarget, samePos } from "../core/arrows";
-import type { AppState, CellPosition } from "../core/model";
-import { removeOutgoingArrows as removeOutgoingArrowsFromState } from "../core/useCases/tableEditing";
-import { drawArrows as drawArrowLayer } from "../ui/arrows";
-import type { AppElements } from "../ui/dom";
-import type { ArrowDraft } from "./sessionTypes";
+import { isValidArrowTarget, samePos } from "../../core/arrows";
+import type { AppState, CellPosition } from "../../core/model";
+import { removeOutgoingArrows as removeOutgoingArrowsFromState } from "../../core/useCases/tableEditing";
+import { drawArrows as drawArrowLayer } from "../../ui/arrows";
+import type { AppElements } from "../../ui/dom";
+import type { ArrowDraft } from "../sessionTypes";
 
 interface ArrowDraftContext {
   elements: AppElements;
@@ -138,3 +138,4 @@ export function createArrowDraftController(
     clearArrowHoverTargetIfMatches
   };
 }
+

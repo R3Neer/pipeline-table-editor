@@ -1,10 +1,10 @@
-import { samePos } from "../core/arrows";
-import type { AppState, CellPosition } from "../core/model";
-import { normalizeCellText } from "../core/validation";
-import { getInputPosition } from "../ui/dom";
+import { samePos } from "../../core/arrows";
+import type { AppState, CellPosition } from "../../core/model";
+import { normalizeCellText } from "../../core/validation";
+import { getInputPosition } from "../../ui/dom";
 import { createCellActionController } from "./cellActionController";
 import { createCellKeyboardController } from "./cellKeyboardController";
-import type { SelectionController } from "./selectionController";
+import type { SelectionController } from "../selection/selectionController";
 
 export interface CellEditingController {
   onCellInput(event: Event): void;
@@ -193,3 +193,4 @@ export function createCellEditingController({
     pasteCell: actions.pasteCell
   };
 }
+

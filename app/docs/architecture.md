@@ -29,28 +29,38 @@ The code follows a small layered split:
 app/src/
 ├─ app/
 │  ├─ appContext.ts
-│  ├─ appEventBindings.ts
-│  ├─ arrowAndExpansionController.ts
-│  ├─ arrowDraftController.ts
-│  ├─ cellActionController.ts
-│  ├─ cellContextMenuController.ts
-│  ├─ cellEditingController.ts
-│  ├─ cellKeyboardController.ts
-│  ├─ contextMenuController.ts
-│  ├─ contextMenuTypes.ts
-│  ├─ exportImportController.ts
-│  ├─ expansionDraftController.ts
-│  ├─ instructionEditorRenderer.ts
-│  ├─ labelModalController.ts
-│  ├─ modalController.ts
-│  ├─ persistenceController.ts
-│  ├─ rowContextMenuController.ts
-│  ├─ rowEditingController.ts
-│  ├─ selectionController.ts
-│  ├─ selectionUiController.ts
+│  ├─ cells/
+│  │  ├─ cellActionController.ts
+│  │  ├─ cellEditingController.ts
+│  │  └─ cellKeyboardController.ts
+│  ├─ events/
+│  │  └─ appEventBindings.ts
+│  ├─ menus/
+│  │  ├─ cellContextMenuController.ts
+│  │  ├─ contextMenuController.ts
+│  │  ├─ contextMenuTypes.ts
+│  │  └─ rowContextMenuController.ts
+│  ├─ modals/
+│  │  ├─ labelModalController.ts
+│  │  └─ modalController.ts
+│  ├─ modes/
+│  │  ├─ arrowAndExpansionController.ts
+│  │  ├─ arrowDraftController.ts
+│  │  └─ expansionDraftController.ts
+│  ├─ persistence/
+│  │  └─ persistenceController.ts
+│  ├─ rendering/
+│  │  ├─ instructionEditorRenderer.ts
+│  │  └─ tableRenderer.ts
+│  ├─ rows/
+│  │  └─ rowEditingController.ts
+│  ├─ selection/
+│  │  ├─ selectionController.ts
+│  │  └─ selectionUiController.ts
 │  ├─ sessionTypes.ts
-│  ├─ tableRenderer.ts
-│  └─ tableWorkflowController.ts
+│  └─ workflows/
+│     ├─ exportImportController.ts
+│     └─ tableWorkflowController.ts
 ├─ main.ts
 ├─ styles.css
 ├─ styles/
@@ -146,7 +156,7 @@ The `core/` modules avoid direct DOM and browser-storage access. They hold the s
 
 The `core/useCases/` modules own deterministic state-changing workflows that are still business logic, such as applying instruction text, changing cycle count, and pruning arrows after edits.
 
-The `app/` modules hold application-level controllers and session-only interaction state. These modules may coordinate `core/`, `ui/`, `integration/`, and `export/`, but they should expose small APIs back to `main.ts` instead of importing each other through hidden globals.
+The `app/` modules hold application-level controllers and session-only interaction state. They are grouped by interaction domain: `cells/`, `rows/`, `menus/`, `modes/`, `rendering/`, `selection/`, `modals/`, `workflows/`, `events/`, and `persistence/`. These modules may coordinate `core/`, `ui/`, `integration/`, and `export/`, but they should expose small APIs back to `main.ts` instead of importing each other through hidden globals.
 
 The `integration/` modules adapt external browser services to the app. They may call browser APIs, but they should keep that work thin and delegate parsing or validation back to `core/`.
 
@@ -161,27 +171,27 @@ Styles are split by visual responsibility. `styles/tokens.css` owns theme variab
 | Area | Modules | Responsibility |
 | --- | --- | --- |
 | Application composition | `main.ts` | Owns `AppState`, wires browser events, and delegates cohesive workflows to application controllers. |
-| Event binding | `app/appEventBindings.ts` | Wires global DOM events to controllers and keeps listener details out of the composition root. |
+| Event binding | `app/events/appEventBindings.ts` | Wires global DOM events to controllers and keeps listener details out of the composition root. |
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
-| Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
-| Selection UI controller | `app/selectionUiController.ts` | Coordinates DOM class refreshes after selection state changes without moving selection rules into the renderer. |
-| Table renderer | `app/tableRenderer.ts` | Builds the split table structure and stage-cell inputs, delegating instruction-row editing UI to `app/instructionEditorRenderer.ts`. |
-| Instruction editor renderer | `app/instructionEditorRenderer.ts` | Builds inline instruction editors, assembly highlighting, row labels, row buttons, and the inline add-row control. |
-| Cell action controller | `app/cellActionController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
-| Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM input/focus/click/hover/context-menu handlers and delegates keyboard/action details. |
-| Cell keyboard controller | `app/cellKeyboardController.ts` | Owns stage-cell keyboard navigation, autocomplete acceptance, Delete, and strike shortcuts. |
-| Context menu facade | `app/contextMenuController.ts` | Keeps the public context-menu API stable while composing cell and row menu controllers plus submenu positioning. |
-| Cell context menu controller | `app/cellContextMenuController.ts` | Owns cell context-menu state, action visibility, and cell action dispatch. |
-| Row context menu controller | `app/rowContextMenuController.ts` | Owns row context-menu state, row action visibility, and row action dispatch. |
-| Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |
-| Label modal controller | `app/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |
-| Persistence controller | `app/persistenceController.ts` | Debounces saves and delegates actual storage to `integration/storage.ts`. |
-| Row editing controller | `app/rowEditingController.ts` | Coordinates instruction-row add/remove/move/edit actions, row clipboard state, confirmations, render, and save scheduling. |
-| Table workflow controller | `app/tableWorkflowController.ts` | Coordinates whole-table workflows such as instruction textarea application, cycle count changes, and full-table clearing. |
-| Export/import controller | `app/exportImportController.ts` | Coordinates text export, PNG export, JSON import, clipboard copy, and export menu state. |
-| Arrow and expansion facade | `app/arrowAndExpansionController.ts` | Keeps the public controller API stable while composing arrow and expansion mode controllers. |
-| Arrow draft controller | `app/arrowDraftController.ts` | Owns arrow draft state, hover target, arrow creation/removal, outgoing-arrow pruning, and SVG redraw orchestration. |
-| Expansion draft controller | `app/expansionDraftController.ts` | Owns expansion draft state, expansion target validation, generated values, and overwrite confirmations. |
+| Selection controller | `app/selection/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
+| Selection UI controller | `app/selection/selectionUiController.ts` | Coordinates DOM class refreshes after selection state changes without moving selection rules into the renderer. |
+| Table renderer | `app/rendering/tableRenderer.ts` | Builds the split table structure and stage-cell inputs, delegating instruction-row editing UI to `app/rendering/instructionEditorRenderer.ts`. |
+| Instruction editor renderer | `app/rendering/instructionEditorRenderer.ts` | Builds inline instruction editors, assembly highlighting, row labels, row buttons, and the inline add-row control. |
+| Cell action controller | `app/cells/cellActionController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
+| Cell editing controller | `app/cells/cellEditingController.ts` | Owns stage-cell DOM input/focus/click/hover/context-menu handlers and delegates keyboard/action details. |
+| Cell keyboard controller | `app/cells/cellKeyboardController.ts` | Owns stage-cell keyboard navigation, autocomplete acceptance, Delete, and strike shortcuts. |
+| Context menu facade | `app/menus/contextMenuController.ts` | Keeps the public context-menu API stable while composing cell and row menu controllers plus submenu positioning. |
+| Cell context menu controller | `app/menus/cellContextMenuController.ts` | Owns cell context-menu state, action visibility, and cell action dispatch. |
+| Row context menu controller | `app/menus/rowContextMenuController.ts` | Owns row context-menu state, row action visibility, and row action dispatch. |
+| Modal controller | `app/modals/modalController.ts` | Owns confirm/notice modal state and resolution. |
+| Label modal controller | `app/modals/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |
+| Persistence controller | `app/persistence/persistenceController.ts` | Debounces saves and delegates actual storage to `integration/storage.ts`. |
+| Row editing controller | `app/rows/rowEditingController.ts` | Coordinates instruction-row add/remove/move/edit actions, row clipboard state, confirmations, render, and save scheduling. |
+| Table workflow controller | `app/workflows/tableWorkflowController.ts` | Coordinates whole-table workflows such as instruction textarea application, cycle count changes, and full-table clearing. |
+| Export/import controller | `app/workflows/exportImportController.ts` | Coordinates text export, PNG export, JSON import, clipboard copy, and export menu state. |
+| Arrow and expansion facade | `app/modes/arrowAndExpansionController.ts` | Keeps the public controller API stable while composing arrow and expansion mode controllers. |
+| Arrow draft controller | `app/modes/arrowDraftController.ts` | Owns arrow draft state, hover target, arrow creation/removal, outgoing-arrow pruning, and SVG redraw orchestration. |
+| Expansion draft controller | `app/modes/expansionDraftController.ts` | Owns expansion draft state, expansion target validation, generated values, and overwrite confirmations. |
 | Session types | `app/sessionTypes.ts` | Defines transient copied-cell and draft interaction state that is not persisted. |
 | Domain model | `core/model.ts` | Defines serializable pipeline-table state. |
 | Row labels | `core/labels.ts` | Normalizes labels and assigns stable, subdued colors. |
@@ -218,7 +228,7 @@ The project uses patterns only where they remove real coupling:
 - `ui/splitTable.ts` acts as a small Mediator between the instruction pane and the cycle viewport. Vertical scrolling, row-height synchronization, and overflow state are coordinated there so `main.ts` does not need to know the mechanics of the split table.
 - `core/autocomplete.ts` is a Facade over Strategy-like suggestion providers in `core/autocompleteProviders.ts`; ranking, context building, history heuristics, row numbering, and candidate validation are separate modules. New suggestion providers can be added without changing unrelated presentation code.
 - `core/validation.ts` uses a Strategy-like rule pipeline. New validation rules can be added without changing presentation code.
-- `integration/storage.ts` is an Adapter around `localStorage`; `app/persistenceController.ts` is the debounced application workflow that calls it.
+- `integration/storage.ts` is an Adapter around `localStorage`; `app/persistence/persistenceController.ts` is the debounced application workflow that calls it.
 - `main.ts` still behaves as the composition root for browser events. A full Command pattern for every menu action is intentionally deferred because current actions are simple, direct, and easier to review as functions.
 
 Architectural review notes:
@@ -492,7 +502,7 @@ The menu is state-sensitive:
 
 Instruction rows have a separate context menu. It can add or edit a row label, remove an existing label, toggle a separator above the row, or open an `Edit` submenu with `Clear`, `Copy`, `Cut`, and `Paste` for instruction text. Labels are colored with a stable hash-based palette and the same color is used when a known label appears inside assembly text.
 
-Rows support their own selection state. `Shift` selects a contiguous block of instruction rows and `Ctrl`/`Cmd` toggles individual rows. Cell selections and row selections are mutually exclusive: entering one mode clears the other. Selection state and selection math live in `app/selectionController.ts` with help from `core/selection.ts`; `main.ts` handles DOM refresh. Row move and delete buttons apply to the selected row block when the clicked button belongs to that block. The deterministic row mutation work lives in `core/rows.ts`; `main.ts` handles confirmations, rendering, and persistence.
+Rows support their own selection state. `Shift` selects a contiguous block of instruction rows and `Ctrl`/`Cmd` toggles individual rows. Cell selections and row selections are mutually exclusive: entering one mode clears the other. Selection state and selection math live in `app/selection/selectionController.ts` with help from `core/selection.ts`; `main.ts` handles DOM refresh. Row move and delete buttons apply to the selected row block when the clicked button belongs to that block. The deterministic row mutation work lives in `core/rows.ts`; `main.ts` handles confirmations, rendering, and persistence.
 
 ## Expansion Sequence
 
@@ -542,7 +552,7 @@ sequenceDiagram
   deactivate app
 ```
 
-Expansion rules are pure domain logic in `core/expansion.ts`; draft state, overwrite confirmation, rendering, and persistence orchestration live in `app/expansionDraftController.ts`, composed through the `app/arrowAndExpansionController.ts` facade.
+Expansion rules are pure domain logic in `core/expansion.ts`; draft state, overwrite confirmation, rendering, and persistence orchestration live in `app/modes/expansionDraftController.ts`, composed through the `app/modes/arrowAndExpansionController.ts` facade.
 
 ## Forwarding Arrow Sequence
 
@@ -598,7 +608,7 @@ sequenceDiagram
   deactivate app
 ```
 
-Arrows are stored in state as row/cycle positions. `app/arrowDraftController.ts` owns arrow draft state and coordinates validation with `core/arrows.ts`; `ui/arrows.ts` only draws the SVG layer. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes. Arrow creation is single-shot: the first clicked target either creates a valid arrow or cancels the draft. A cell that already has an incoming arrow is not a valid target for another arrow.
+Arrows are stored in state as row/cycle positions. `app/modes/arrowDraftController.ts` owns arrow draft state and coordinates validation with `core/arrows.ts`; `ui/arrows.ts` only draws the SVG layer. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes. Arrow creation is single-shot: the first clicked target either creates a valid arrow or cancels the draft. A cell that already has an incoming arrow is not a valid target for another arrow.
 
 ## Export Sequence
 
@@ -752,3 +762,4 @@ Keep these boundaries when adding new features:
 - Keep file/download browser mechanics in `ui/download.ts`.
 - Keep output formats in `export/`.
 - Avoid adding automatic pipeline simulation logic; this editor should remain manual and explicit.
+

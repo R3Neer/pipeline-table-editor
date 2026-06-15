@@ -1,12 +1,12 @@
-import type { AppState } from "../core/model";
+import type { AppState } from "../../core/model";
 import {
   isRowNonEmpty as isInstructionRowNonEmpty,
   moveRows,
   removeRows
-} from "../core/rows";
-import { makeRow } from "../core/state";
-import type { AppElements } from "../ui/dom";
-import type { SelectionController } from "./selectionController";
+} from "../../core/rows";
+import { makeRow } from "../../core/state";
+import type { AppElements } from "../../ui/dom";
+import type { SelectionController } from "../selection/selectionController";
 
 export interface RowEditingController {
   addInstruction(): void;
@@ -140,4 +140,5 @@ export function createRowEditingController({
     pasteInstruction
   };
 }
+
 

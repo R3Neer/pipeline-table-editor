@@ -61,7 +61,7 @@ The output is written to `dist/`.
   - `app/src/main.ts`: lightweight application coordinator and event wiring.
   - `app/src/core/`: data model, state normalization, labels, stage parsing, validation, autocomplete, arrow, row, selection, and expansion rules.
   - `app/src/core/useCases/`: deterministic table-editing workflows with no DOM access.
-  - `app/src/app/`: application controllers for event binding, selection, context menus, cell editing, row editing, table workflows, modals, row labels, persistence, import/export, arrows/expansion, plus transient session types.
+  - `app/src/app/`: application controllers grouped by interaction domain: cells, rows, menus, modes, rendering, selection, modals, workflows, events, persistence, plus transient session types.
   - `app/src/integration/`: browser integration that adapts app state to external services such as `localStorage`.
   - `app/src/ui/`: DOM helpers, split-table scrolling/layout, autocomplete menu rendering, floating positioning, arrow drawing, download helpers, and small table presentation helpers.
   - `app/src/export/`: Markdown/text/JSON/PNG export code and export format metadata.

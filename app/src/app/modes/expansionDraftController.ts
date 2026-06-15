@@ -2,9 +2,9 @@ import {
   canStartExpand as canStartExpandStage,
   makeExpansionValues,
   wouldChangeFilledCells
-} from "../core/expansion";
-import type { AppState, CellPosition } from "../core/model";
-import type { ExpandDraft } from "./sessionTypes";
+} from "../../core/expansion";
+import type { AppState, CellPosition } from "../../core/model";
+import type { ExpandDraft } from "../sessionTypes";
 
 interface ExpansionDraftContext {
   getState(): AppState;
@@ -102,3 +102,4 @@ export function createExpansionDraftController(
     canStartExpand
   };
 }
+

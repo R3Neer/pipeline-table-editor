@@ -1,9 +1,9 @@
-import type { AppState } from "../core/model";
-import type { AppElements } from "../ui/dom";
-import type { RowContextAction } from "../ui/menuActions";
-import { placeFloatingElement } from "../ui/positioning";
+import type { AppState } from "../../core/model";
+import type { AppElements } from "../../ui/dom";
+import type { RowContextAction } from "../../ui/menuActions";
+import { placeFloatingElement } from "../../ui/positioning";
 import type { ContextMenuActions } from "./contextMenuTypes";
-import type { SelectionController } from "./selectionController";
+import type { SelectionController } from "../selection/selectionController";
 
 interface RowContextMenuControllerOptions {
   elements: AppElements;
@@ -75,3 +75,4 @@ export function createRowContextMenuController({
 
   return { openRowMenu, hideRowMenu, bindEvents };
 }
+

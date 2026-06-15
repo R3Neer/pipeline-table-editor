@@ -1,19 +1,19 @@
 import "./styles.css";
 
-import { bindAppEvents } from "./app/appEventBindings";
+import { bindAppEvents } from "./app/events/appEventBindings";
 import type { AppState, CellPosition } from "./core/model";
-import { createArrowAndExpansionController } from "./app/arrowAndExpansionController";
-import { createCellEditingController } from "./app/cellEditingController";
-import { createContextMenuController } from "./app/contextMenuController";
-import { createExportImportController } from "./app/exportImportController";
-import { createLabelModalController } from "./app/labelModalController";
-import { createModalController } from "./app/modalController";
-import { createPersistenceController } from "./app/persistenceController";
-import { createRowEditingController } from "./app/rowEditingController";
-import { createSelectionController } from "./app/selectionController";
-import { createSelectionUiController } from "./app/selectionUiController";
-import { createTableRenderer } from "./app/tableRenderer";
-import { createTableWorkflowController } from "./app/tableWorkflowController";
+import { createArrowAndExpansionController } from "./app/modes/arrowAndExpansionController";
+import { createCellEditingController } from "./app/cells/cellEditingController";
+import { createContextMenuController } from "./app/menus/contextMenuController";
+import { createExportImportController } from "./app/workflows/exportImportController";
+import { createLabelModalController } from "./app/modals/labelModalController";
+import { createModalController } from "./app/modals/modalController";
+import { createPersistenceController } from "./app/persistence/persistenceController";
+import { createRowEditingController } from "./app/rows/rowEditingController";
+import { createSelectionController } from "./app/selection/selectionController";
+import { createSelectionUiController } from "./app/selection/selectionUiController";
+import { createTableRenderer } from "./app/rendering/tableRenderer";
+import { createTableWorkflowController } from "./app/workflows/tableWorkflowController";
 import { createDefaultState } from "./core/state";
 import { pruneArrowsFromStruckCells as pruneStruckCellArrows } from "./core/useCases/tableEditing";
 import { loadStateFromStorage } from "./integration/storage";
@@ -285,3 +285,4 @@ splitTable.attach();
 pruneArrowsFromStruckCells();
 render();
 saveState(false);
+

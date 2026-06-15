@@ -1,6 +1,6 @@
-import type { AppState } from "../core/model";
-import { saveStateToStorage } from "../integration/storage";
-import type { AppElements } from "../ui/dom";
+import type { AppState } from "../../core/model";
+import { saveStateToStorage } from "../../integration/storage";
+import type { AppElements } from "../../ui/dom";
 
 export interface PersistenceController {
   scheduleSave(): void;
@@ -33,4 +33,5 @@ export function createPersistenceController(options: PersistenceControllerOption
 
   return { scheduleSave, saveState };
 }
+
 

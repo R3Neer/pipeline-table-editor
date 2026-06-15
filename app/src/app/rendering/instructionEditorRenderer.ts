@@ -1,12 +1,12 @@
-import { getKnownLabels, getLabelColor } from "../core/labels";
-import type { AppState } from "../core/model";
-import { renderAssemblyHighlight } from "../ui/assemblyHighlight";
-import type { AppElements } from "../ui/dom";
-import { updateInstructionColumnWidth } from "../ui/instructionColumnWidth";
-import type { SplitTableController } from "../ui/splitTable";
-import { makeRowButton } from "../ui/tableElements";
-import type { RowEditingController } from "./rowEditingController";
-import type { SelectionController } from "./selectionController";
+import { getKnownLabels, getLabelColor } from "../../core/labels";
+import type { AppState } from "../../core/model";
+import { renderAssemblyHighlight } from "../../ui/assemblyHighlight";
+import type { AppElements } from "../../ui/dom";
+import { updateInstructionColumnWidth } from "../../ui/instructionColumnWidth";
+import type { SplitTableController } from "../../ui/splitTable";
+import { makeRowButton } from "../../ui/tableElements";
+import type { RowEditingController } from "../rows/rowEditingController";
+import type { SelectionController } from "../selection/selectionController";
 
 interface InstructionEditorRendererOptions {
   elements: AppElements;
@@ -122,3 +122,4 @@ export function createInstructionEditorRenderer({
 
   return { makeInstructionEditor, makeAddRowZone };
 }
+

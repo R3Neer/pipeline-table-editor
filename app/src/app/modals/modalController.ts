@@ -1,4 +1,4 @@
-import type { AppElements } from "../ui/dom";
+import type { AppElements } from "../../ui/dom";
 
 export interface ModalController {
   showConfirm(title: string, message: string, acceptText?: string): Promise<boolean>;
@@ -48,4 +48,5 @@ export function createModalController(elements: AppElements): ModalController {
 
   return { showConfirm, showNotice, closeConfirmModal };
 }
+
 

@@ -1,11 +1,11 @@
-import type { ExportFormat } from "../export/types";
-import type { SplitTableController } from "../ui/splitTable";
-import type { AppElements } from "../ui/dom";
-import type { CellEditingController } from "./cellEditingController";
-import type { ContextMenuController } from "./contextMenuController";
-import type { ExportImportController } from "./exportImportController";
-import type { LabelModalController } from "./labelModalController";
-import type { TableWorkflowController } from "./tableWorkflowController";
+import type { ExportFormat } from "../../export/types";
+import type { SplitTableController } from "../../ui/splitTable";
+import type { AppElements } from "../../ui/dom";
+import type { CellEditingController } from "../cells/cellEditingController";
+import type { ContextMenuController } from "../menus/contextMenuController";
+import type { ExportImportController } from "../workflows/exportImportController";
+import type { LabelModalController } from "../modals/labelModalController";
+import type { TableWorkflowController } from "../workflows/tableWorkflowController";
 
 interface AppEventBindingsOptions {
   elements: AppElements;
@@ -128,4 +128,5 @@ function attachTextareaResizeHandles(): void {
     });
   });
 }
+
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { createArrowAndExpansionController } from "../src/app/arrowAndExpansionController";
-import { createSelectionController } from "../src/app/selectionController";
+import { createArrowAndExpansionController } from "../src/app/modes/arrowAndExpansionController";
+import { createSelectionController } from "../src/app/selection/selectionController";
 import { getAutocompleteSuggestions, type SuggestionProvider } from "../src/core/autocomplete";
 import type { AppState, CellPosition } from "../src/core/model";
 import { createCellValidator, validateCellText, type CellValidationRule } from "../src/core/validation";
