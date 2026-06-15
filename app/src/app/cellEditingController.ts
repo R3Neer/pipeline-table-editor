@@ -3,6 +3,7 @@ import type { AppState, CellPosition } from "../core/model";
 import { normalizeCellText } from "../core/validation";
 import { getInputPosition } from "../ui/dom";
 import { createCellActionController } from "./cellActionController";
+import { createCellKeyboardController } from "./cellKeyboardController";
 import type { SelectionController } from "./selectionController";
 
 export interface CellEditingController {
@@ -82,6 +83,19 @@ export function createCellEditingController({
     drawArrows,
     removeOutgoingArrows
   });
+  const keyboard = createCellKeyboardController({
+    selection,
+    getState,
+    getCellElement,
+    autocomplete,
+    clearRowSelection,
+    setSingleSelection,
+    cancelTransientUi,
+    refreshCellClasses,
+    scheduleSave,
+    clearCell: actions.clearCell,
+    toggleStrike: actions.toggleStrike
+  });
 
   function onCellInput(event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
@@ -152,96 +166,10 @@ export function createCellEditingController({
     contextMenu.openCellMenu(contextCell, event.clientX, event.clientY);
   }
 
-  function onCellKeyDown(event: KeyboardEvent): void {
-    const input = event.currentTarget as HTMLInputElement;
-    const pos = getInputPosition(input);
-    const activeSuggestion = autocomplete.active;
-
-    if ((event.key === "ArrowUp" || event.key === "ArrowDown") && activeSuggestion.values.length) {
-      event.preventDefault();
-      autocomplete.move(event.key === "ArrowDown" ? 1 : -1);
-      return;
-    }
-    if (event.key === "Enter" && activeSuggestion.values.length) {
-      event.preventDefault();
-      acceptSuggestion(activeSuggestion.values[activeSuggestion.index]);
-      return;
-    }
-    if (event.key === "Tab" && activeSuggestion.values.length) {
-      event.preventDefault();
-      acceptSuggestion(activeSuggestion.values[activeSuggestion.index]);
-      return;
-    }
-    if (event.key === "Tab") {
-      event.preventDefault();
-      focusRelativeCell(pos, event.shiftKey ? -1 : 1);
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      focusCell(pos.row - 1, pos.cycle);
-      return;
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      focusCell(pos.row + 1, pos.cycle);
-      return;
-    }
-    if (event.key === "Delete") {
-      event.preventDefault();
-      actions.clearCell(pos);
-      return;
-    }
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
-      event.preventDefault();
-      actions.toggleStrike(pos);
-      return;
-    }
-    if (event.key === "Escape") {
-      cancelTransientUi();
-    }
-  }
-
-  function acceptSuggestion(value: string): void {
-    const pos = autocomplete.active.pos || selection.getSelectedCell();
-    if (!pos) return;
-    const cell = getState().rows[pos.row].cells[pos.cycle];
-    cell.text = value;
-    const input = getCellElement(pos);
-    if (input) {
-      input.value = value;
-      input.focus();
-    }
-    autocomplete.hide();
-    refreshCellClasses();
-    scheduleSave();
-  }
-
   function hideAutocompleteIfFocusLeftCells(): void {
     const activeElement = document.activeElement;
     if (activeElement instanceof HTMLInputElement && activeElement.classList.contains("stage-input")) return;
     autocomplete.hide();
-  }
-
-  function focusRelativeCell(pos: CellPosition, offset: number): void {
-    const state = getState();
-    const total = state.rows.length * state.cycles;
-    if (total === 0) return;
-    const flat = pos.row * state.cycles + pos.cycle;
-    const next = Math.max(0, Math.min(total - 1, flat + offset));
-    focusCell(Math.floor(next / state.cycles), next % state.cycles);
-  }
-
-  function focusCell(row: number, cycle: number): void {
-    const state = getState();
-    if (row < 0 || row >= state.rows.length || cycle < 0 || cycle >= state.cycles) return;
-    const input = getCellElement({ row, cycle });
-    if (input) {
-      clearRowSelection();
-      input.focus();
-      input.select();
-      setSingleSelection({ row, cycle });
-    }
   }
 
   function isSelectionModifierClick(event: MouseEvent): boolean {
@@ -255,8 +183,8 @@ export function createCellEditingController({
     onCellMouseEnter,
     onCellMouseLeave,
     onCellContextMenu,
-    onCellKeyDown,
-    acceptSuggestion,
+    onCellKeyDown: keyboard.onCellKeyDown,
+    acceptSuggestion: keyboard.acceptSuggestion,
     hideAutocompleteIfFocusLeftCells,
     toggleStrike: actions.toggleStrike,
     clearCell: actions.clearCell,

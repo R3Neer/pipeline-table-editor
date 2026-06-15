@@ -33,6 +33,7 @@ app/src/
 │  ├─ arrowAndExpansionController.ts
 │  ├─ cellActionController.ts
 │  ├─ cellEditingController.ts
+│  ├─ cellKeyboardController.ts
 │  ├─ contextMenuController.ts
 │  ├─ exportImportController.ts
 │  ├─ labelModalController.ts
@@ -155,7 +156,8 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Selection UI controller | `app/selectionUiController.ts` | Coordinates DOM class refreshes after selection state changes without moving selection rules into the renderer. |
 | Table renderer | `app/tableRenderer.ts` | Builds the instruction pane, cycle table, inline row controls, assembly highlighting, and stage-cell inputs. |
 | Cell action controller | `app/cellActionController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
-| Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM handlers, keyboard navigation, autocomplete acceptance, simple cell actions, and cell clipboard state. |
+| Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM input/focus/click/hover/context-menu handlers and delegates keyboard/action details. |
+| Cell keyboard controller | `app/cellKeyboardController.ts` | Owns stage-cell keyboard navigation, autocomplete acceptance, Delete, and strike shortcuts. |
 | Context menu controller | `app/contextMenuController.ts` | Owns cell/row context-menu state, menu visibility, action availability, submenu positioning, and action dispatch through callbacks. |
 | Modal controller | `app/modalController.ts` | Owns confirm/notice modal state and resolution. |
 | Label modal controller | `app/labelModalController.ts` | Owns row-label modal state, label normalization, save/cancel behavior, and modal event binding. |

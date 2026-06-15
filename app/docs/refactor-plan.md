@@ -33,6 +33,7 @@ Recently resolved hotspot:
 - `app/src/core/autocomplete.ts` is now a facade. Provider rules, ranking, context, history, row-number analysis, validation, and shared types live in focused `app/src/core/autocomplete*.ts` modules.
 - `app/src/export/image.ts` is now a PNG export facade. Metrics, theme, primitives, text drawing, table drawing, and arrow drawing live in focused `app/src/export/image*.ts` modules.
 - `app/src/main.ts` no longer renders the table directly or owns selection-to-DOM refresh logic. Table rendering lives in `app/src/app/tableRenderer.ts`; selection UI refresh coordination lives in `app/src/app/selectionUiController.ts`.
+- `app/src/app/cellEditingController.ts` no longer owns keyboard navigation or autocomplete acceptance. Those live in `app/src/app/cellKeyboardController.ts`.
 
 ## Current Audit Status
 
