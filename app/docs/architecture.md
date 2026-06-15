@@ -40,7 +40,9 @@ app/src/
 │  ├─ persistenceController.ts
 │  ├─ rowEditingController.ts
 │  ├─ selectionController.ts
+│  ├─ selectionUiController.ts
 │  ├─ sessionTypes.ts
+│  ├─ tableRenderer.ts
 │  └─ tableWorkflowController.ts
 ├─ main.ts
 ├─ styles.css
@@ -128,7 +130,7 @@ flowchart TD
   Export --> Core
 ```
 
-The application coordinator owns the mutable app state and wires browser events to application controllers. It still performs table rendering directly, but cohesive workflows such as selection, context-menu handling, cell editing, row editing, modal handling, row-label editing, persistence, import/export, and arrow/expansion drafts live in `app/` modules.
+The application coordinator owns the mutable app state and wires browser events to application controllers. Cohesive workflows such as selection, table rendering, context-menu handling, cell editing, row editing, modal handling, row-label editing, persistence, import/export, and arrow/expansion drafts live in `app/` modules.
 
 The `core/` modules avoid direct DOM and browser-storage access. They hold the serializable data model, stage parsing, validation rules, selection utilities, expansion rules, assembly tokenization, and persisted-state normalization.
 
@@ -146,10 +148,12 @@ The `export/` modules produce external representations. `export/index.ts` contai
 
 | Area | Modules | Responsibility |
 | --- | --- | --- |
-| Application composition | `main.ts` | Owns `AppState`, renders the table, wires browser events, and delegates cohesive workflows to application controllers. |
+| Application composition | `main.ts` | Owns `AppState`, wires browser events, and delegates cohesive workflows to application controllers. |
 | Event binding | `app/appEventBindings.ts` | Wires global DOM events to controllers and keeps listener details out of the composition root. |
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
 | Selection controller | `app/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
+| Selection UI controller | `app/selectionUiController.ts` | Coordinates DOM class refreshes after selection state changes without moving selection rules into the renderer. |
+| Table renderer | `app/tableRenderer.ts` | Builds the instruction pane, cycle table, inline row controls, assembly highlighting, and stage-cell inputs. |
 | Cell action controller | `app/cellActionController.ts` | Owns simple cell actions and cell clipboard state: clear, copy, cut, paste, and strike toggling. |
 | Cell editing controller | `app/cellEditingController.ts` | Owns stage-cell DOM handlers, keyboard navigation, autocomplete acceptance, simple cell actions, and cell clipboard state. |
 | Context menu controller | `app/contextMenuController.ts` | Owns cell/row context-menu state, menu visibility, action availability, submenu positioning, and action dispatch through callbacks. |
@@ -649,7 +653,7 @@ The app does not use a virtual DOM or framework state store. Rendering is explic
 5. The SVG arrow layer is redrawn after table updates, scrolling, and resizing.
 6. A debounced save passes the serializable state to the storage integration adapter.
 
-Selection state, context-menu state, cell clipboard state, row-editing workflow state, table workflow orchestration, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
+Selection state, selection UI refresh orchestration, table rendering, context-menu state, cell clipboard state, row-editing workflow state, table workflow orchestration, label-modal state, and arrow/expansion draft state used to live directly inside `main.ts`; they now live in dedicated `app/` controllers. This keeps rendering explicit while giving those interaction workflows their own testable boundaries.
 
 This direct rendering style is simple enough for the size of the project and keeps deployment as a static site.
 

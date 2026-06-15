@@ -18,7 +18,6 @@ Allowed code exceptions must explain why the file is large and what would make i
 
 | File | Current concern | Direction |
 | --- | --- | --- |
-| `app/src/main.ts` | Composition root still also owns direct table rendering. | Extract table rendering/view assembly once export internals are split. |
 | `app/src/core/validation.ts` | Still manageable, but new validation rules will make it grow quickly. | Prepare rule-level modules before adding more rules. |
 
 Recently resolved hotspot:
@@ -33,13 +32,14 @@ Recently resolved hotspot:
 - `app/src/styles.css` has been split into visual-domain stylesheets under `app/src/styles/`, with the original file kept as the import entrypoint.
 - `app/src/core/autocomplete.ts` is now a facade. Provider rules, ranking, context, history, row-number analysis, validation, and shared types live in focused `app/src/core/autocomplete*.ts` modules.
 - `app/src/export/image.ts` is now a PNG export facade. Metrics, theme, primitives, text drawing, table drawing, and arrow drawing live in focused `app/src/export/image*.ts` modules.
+- `app/src/main.ts` no longer renders the table directly or owns selection-to-DOM refresh logic. Table rendering lives in `app/src/app/tableRenderer.ts`; selection UI refresh coordination lives in `app/src/app/selectionUiController.ts`.
 
 ## Current Audit Status
 
 `npm run audit:file-sizes` is currently expected to pass, with warnings for files over 300 lines. Those warnings keep the largest remaining architecture debt visible while the refactor is underway.
 
 Known `>500` files: none.
-Known `>300` warnings: `app/src/main.ts`.
+Known `>300` warnings: none.
 
 ## Refactor Phases
 
@@ -58,7 +58,7 @@ Known `>300` warnings: `app/src/main.ts`.
 7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to review the remaining `>300` warning in `app/src/main.ts`.
+The recommended next phase is a qualitative review of the remaining files over 100 lines. Files in the 100-300 range are not automatically debt, but they should be checked for mixed responsibilities before the refactor loop is considered complete.
 
 ## Multi-Agent Team
 
