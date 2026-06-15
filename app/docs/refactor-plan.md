@@ -34,6 +34,7 @@ Recently resolved hotspot:
 - `app/src/export/image.ts` is now a PNG export facade. Metrics, theme, primitives, text drawing, table drawing, and arrow drawing live in focused `app/src/export/image*.ts` modules.
 - `app/src/main.ts` no longer renders the table directly or owns selection-to-DOM refresh logic. Table rendering lives in `app/src/app/tableRenderer.ts`; selection UI refresh coordination lives in `app/src/app/selectionUiController.ts`.
 - `app/src/app/cellEditingController.ts` no longer owns keyboard navigation or autocomplete acceptance. Those live in `app/src/app/cellKeyboardController.ts`.
+- `app/src/app/arrowAndExpansionController.ts` is now a facade over `app/src/app/arrowDraftController.ts` and `app/src/app/expansionDraftController.ts`.
 
 ## Current Audit Status
 

@@ -31,11 +31,13 @@ app/src/
 │  ├─ appContext.ts
 │  ├─ appEventBindings.ts
 │  ├─ arrowAndExpansionController.ts
+│  ├─ arrowDraftController.ts
 │  ├─ cellActionController.ts
 │  ├─ cellEditingController.ts
 │  ├─ cellKeyboardController.ts
 │  ├─ contextMenuController.ts
 │  ├─ exportImportController.ts
+│  ├─ expansionDraftController.ts
 │  ├─ labelModalController.ts
 │  ├─ modalController.ts
 │  ├─ persistenceController.ts
@@ -165,7 +167,9 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Row editing controller | `app/rowEditingController.ts` | Coordinates instruction-row add/remove/move/edit actions, row clipboard state, confirmations, render, and save scheduling. |
 | Table workflow controller | `app/tableWorkflowController.ts` | Coordinates whole-table workflows such as instruction textarea application, cycle count changes, and full-table clearing. |
 | Export/import controller | `app/exportImportController.ts` | Coordinates text export, PNG export, JSON import, clipboard copy, and export menu state. |
-| Arrow and expansion controller | `app/arrowAndExpansionController.ts` | Owns arrow draft, hover target, expansion draft, arrow removal, arrow drawing orchestration, and overwrite confirmations. |
+| Arrow and expansion facade | `app/arrowAndExpansionController.ts` | Keeps the public controller API stable while composing arrow and expansion mode controllers. |
+| Arrow draft controller | `app/arrowDraftController.ts` | Owns arrow draft state, hover target, arrow creation/removal, outgoing-arrow pruning, and SVG redraw orchestration. |
+| Expansion draft controller | `app/expansionDraftController.ts` | Owns expansion draft state, expansion target validation, generated values, and overwrite confirmations. |
 | Session types | `app/sessionTypes.ts` | Defines transient copied-cell and draft interaction state that is not persisted. |
 | Domain model | `core/model.ts` | Defines serializable pipeline-table state. |
 | Row labels | `core/labels.ts` | Normalizes labels and assigns stable, subdued colors. |
@@ -526,7 +530,7 @@ sequenceDiagram
   deactivate app
 ```
 
-Expansion rules are pure domain logic in `core/expansion.ts`; draft state, overwrite confirmation, rendering, and persistence orchestration live in `app/arrowAndExpansionController.ts`.
+Expansion rules are pure domain logic in `core/expansion.ts`; draft state, overwrite confirmation, rendering, and persistence orchestration live in `app/expansionDraftController.ts`, composed through the `app/arrowAndExpansionController.ts` facade.
 
 ## Forwarding Arrow Sequence
 
@@ -582,7 +586,7 @@ sequenceDiagram
   deactivate app
 ```
 
-Arrows are stored in state as row/cycle positions. `app/arrowAndExpansionController.ts` owns arrow draft state and coordinates validation with `core/arrows.ts`; `ui/arrows.ts` only draws the SVG layer. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes. Arrow creation is single-shot: the first clicked target either creates a valid arrow or cancels the draft. A cell that already has an incoming arrow is not a valid target for another arrow.
+Arrows are stored in state as row/cycle positions. `app/arrowDraftController.ts` owns arrow draft state and coordinates validation with `core/arrows.ts`; `ui/arrows.ts` only draws the SVG layer. The SVG layer is regenerated from state whenever the table changes, scrolls, or resizes. Arrow creation is single-shot: the first clicked target either creates a valid arrow or cancels the draft. A cell that already has an incoming arrow is not a valid target for another arrow.
 
 ## Export Sequence
 
