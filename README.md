@@ -136,7 +136,9 @@ Labels and separators are manual annotations. They are exported in JSON, Markdow
 Current GitHub-ready version: `v1.0.0`.
 
 GitHub Pages is deployed automatically when a GitHub release is published. The
-release workflow first runs `npm run build`, `npm run test:all`, the file-size
+release event dispatches the Pages deployment workflow on `main` so the
+`github-pages` environment can keep branch-based deployment protection enabled.
+The Pages workflow first runs `npm run build`, `npm run test:all`, the file-size
 audit, the circular dependency audit, and the layer audit. Pages is deployed only
 if all validation steps pass.
 

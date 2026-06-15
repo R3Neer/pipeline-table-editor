@@ -1,9 +1,12 @@
 name: Deploy GitHub Pages
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Optional release tag that requested this deployment.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -38,10 +41,12 @@ jobs:
         working-directory: app
 
       - name: Check release version
-        if: github.event_name == 'release'
+        if: inputs.release_tag != ''
         run: |
-          node -e 'const pkg=require("./package.json"); const tag=process.env.GITHUB_REF_NAME || ""; const expected="v"+pkg.version; if (tag !== expected) { console.error("Release tag " + tag + " does not match app/package.json version " + pkg.version + ". Expected " + expected + "."); process.exit(1); }'
+          node -e 'const pkg=require("./package.json"); const tag=process.env.RELEASE_TAG || ""; const expected="v"+pkg.version; if (tag !== expected) { console.error("Release tag " + tag + " does not match app/package.json version " + pkg.version + ". Expected " + expected + "."); process.exit(1); }'
         working-directory: app
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
 
       - name: Build
         run: npm run build

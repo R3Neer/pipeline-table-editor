@@ -1,0 +1,32 @@
+name: Release GitHub Pages
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  dispatch-pages:
+    name: Dispatch Pages deployment from main
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dispatch deploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "deploy-pages.yml",
+              ref: "main",
+              inputs: {
+                release_tag: context.payload.release.tag_name
+              }
+            });
