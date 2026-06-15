@@ -58,6 +58,13 @@ app/src/
 │  ├─ assembly.ts
 │  ├─ arrows.ts
 │  ├─ autocomplete.ts
+│  ├─ autocompleteContext.ts
+│  ├─ autocompleteHistory.ts
+│  ├─ autocompleteProviders.ts
+│  ├─ autocompleteRanking.ts
+│  ├─ autocompleteRowAnalysis.ts
+│  ├─ autocompleteTypes.ts
+│  ├─ autocompleteValidation.ts
 │  ├─ labels.ts
 │  ├─ expansion.ts
 │  ├─ model.ts
@@ -151,7 +158,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Domain model | `core/model.ts` | Defines serializable pipeline-table state. |
 | Row labels | `core/labels.ts` | Normalizes labels and assigns stable, subdued colors. |
 | Stage syntax | `core/stage.ts` | Normalizes and parses stage text such as `IF`, `EX2`, or `IDp`. |
-| Autocomplete rules | `core/autocomplete.ts` | Builds ranked stage suggestions from state, current input, pending-stage propagation, and local numbering habits. |
+| Autocomplete rules | `core/autocomplete*.ts` | Builds ranked stage suggestions through a small facade plus provider, ranking, context, history, row-analysis, validation, and type modules. |
 | Validation | `core/validation.ts` | Applies visual error rules for stage order, missing previous stages, and pending `p` suffixes. |
 | Arrow rules | `core/arrows.ts` | Validates forwarding arrow shape, target constraints, duplicate incoming targets, and row remapping. |
 | Row rules | `core/rows.ts` | Moves and removes instruction rows, remaps arrows, and computes row action targets for single or multi-row selection. |
@@ -181,7 +188,8 @@ The project uses patterns only where they remove real coupling:
 
 - `app/*Controller.ts` modules are small Controllers/Facades around cohesive workflows. They reduce `main.ts` coupling without introducing framework state or class-heavy architecture.
 - `ui/splitTable.ts` acts as a small Mediator between the instruction pane and the cycle viewport. Vertical scrolling, row-height synchronization, and overflow state are coordinated there so `main.ts` does not need to know the mechanics of the split table.
-- `core/autocomplete.ts` and `core/validation.ts` use Strategy-like function pipelines. New suggestion providers or validation rules can be added without changing unrelated presentation code.
+- `core/autocomplete.ts` is a Facade over Strategy-like suggestion providers in `core/autocompleteProviders.ts`; ranking, context building, history heuristics, row numbering, and candidate validation are separate modules. New suggestion providers can be added without changing unrelated presentation code.
+- `core/validation.ts` uses a Strategy-like rule pipeline. New validation rules can be added without changing presentation code.
 - `integration/storage.ts` is an Adapter around `localStorage`; `app/persistenceController.ts` is the debounced application workflow that calls it.
 - `main.ts` still behaves as the composition root for browser events. A full Command pattern for every menu action is intentionally deferred because current actions are simple, direct, and easier to review as functions.
 
@@ -356,10 +364,10 @@ sequenceDiagram
 
 Autocomplete is split in two layers:
 
-- `core/autocomplete.ts` is a pure suggestion engine built from ordered `SuggestionProvider` functions. It receives `AppState`, a `CellPosition`, and the raw input text, then returns ordered string suggestions.
+- `core/autocomplete.ts` is the pure suggestion-engine facade. It receives `AppState`, a `CellPosition`, and the raw input text, then delegates to ordered `SuggestionProvider` functions and returns ordered string suggestions.
 - `ui/autocomplete.ts` is the DOM controller. It positions the menu, renders buttons, moves the active option, and dispatches accepted values.
 
-The core engine builds suggestions through small candidate rules: exact valid input, pending continuation, historical next stage, numbered continuation, next stage root, and allowed local roots. The rules share validation helpers such as `requiresPendingFromAbove` and contextual number checks. That keeps the menu from suggesting stages that the validator already knows cannot be valid, especially around vertical pending-stage propagation and numbered pending stages.
+The core engine builds suggestions through small candidate rules in `core/autocompleteProviders.ts`: exact valid input, pending continuation, historical next stage, numbered continuation, next stage root, and allowed local roots. Ranking lives in `core/autocompleteRanking.ts`, historical transition detection in `core/autocompleteHistory.ts`, local row numbering in `core/autocompleteRowAnalysis.ts`, contextual root preferences in `core/autocompleteContext.ts`, and candidate validity in `core/autocompleteValidation.ts`. That keeps the menu from suggesting stages that the validator already knows cannot be valid, especially around vertical pending-stage propagation and numbered pending stages.
 
 New autocomplete behavior should be added as another provider in the provider list. Providers can add candidates, rely on the shared collector for filtering/deduplication, or return `stop` when no later provider should run.
 
@@ -703,7 +711,7 @@ Keep these boundaries when adding new features:
 
 - Add stage syntax and parsing rules in `core/stage.ts`.
 - Add validation rules in `core/validation.ts`.
-- Add autocomplete ranking or filtering behavior as a `SuggestionProvider` in `core/autocomplete.ts`.
+- Add autocomplete candidate behavior as a `SuggestionProvider` in `core/autocompleteProviders.ts`; keep ordering behavior in `core/autocompleteRanking.ts` and candidate validity checks in `core/autocompleteValidation.ts`.
 - Add forwarding-arrow constraints in `core/arrows.ts`.
 - Add deterministic table-editing workflows in `core/useCases/`.
 - Keep application workflow coordination and transient UI/session state in `app/`, not in `core/model.ts`.
