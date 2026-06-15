@@ -78,6 +78,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run build`: TypeScript check and static build.
 - `npm run preview`: previews `dist/`.
 - `npm run audit:file-sizes`: reports code/style/test files over 100 lines, warns over 300, and fails over 500.
+- `npm run audit:deps`: fails if relative source imports contain circular dependencies.
 - `npm run screenshots`: regenerates documentation screenshots.
 - `npm run test:unit`: fast unit tests for domain rules.
 - `npm run test:integration`: integration-style unit tests for extensibility seams, storage, export services, visual class composition, and table-editing use cases.
@@ -85,6 +86,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run test:smoke`: browser smoke test.
 
 `npm run audit:file-sizes` is expected to pass. Files over 300 lines are still reported as warnings and should be reviewed during the next refactor pass.
+`npm run audit:deps` is expected to pass with no circular dependencies.
 
 ## Architecture And Refactor Policy
 

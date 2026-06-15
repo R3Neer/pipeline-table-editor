@@ -14,6 +14,12 @@ The automated audit applies to code, style, and test files under `src/`, `tests/
 
 Allowed code exceptions must explain why the file is large and what would make it safe to split later.
 
+## Dependency Cycle Policy
+
+- `npm run audit:deps` must pass before committing architecture refactors.
+- Circular dependencies inside `src/` are treated as architecture bugs.
+- If two modules need each other, introduce a smaller shared module, invert the dependency through callbacks/types, or move the shared rule to the lower layer that owns it.
+
 ## Current Hotspots
 
 | File | Current concern | Direction |
@@ -100,6 +106,7 @@ Every non-doc commit should preserve:
 - No visible UX or text changes unless explicitly documented.
 - No `core/` dependency on DOM, `ui/`, `integration/`, `export/`, or `app/`.
 - Passing `npm run build`, `npm run test:unit`, `npm run test:integration`, and `npm run test:smoke` before merging a phase.
+- Passing `npm run audit:deps` before merging architecture or module-boundary changes.
 
 When a phase is large, prefer this sequence:
 

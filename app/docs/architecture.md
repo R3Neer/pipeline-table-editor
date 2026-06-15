@@ -745,6 +745,12 @@ The audit is expected to pass. Remaining `>300` warnings are treated as refactor
 
 The audit does not include Markdown reference documents because long-form documentation can be valid when it remains well sectioned and easy to scan.
 
+## Dependency Cycle Audit
+
+`npm run audit:deps` checks relative imports under `src/` and fails when it finds a circular dependency. It covers TypeScript imports/exports, simple dynamic imports, and CSS `@import` statements.
+
+The audit is intentionally local to source files. It ignores package imports and dependency graph edges outside `src/` because those do not create internal architecture cycles.
+
 ## Architectural Boundaries
 
 Keep these boundaries when adding new features:
@@ -761,5 +767,6 @@ Keep these boundaries when adding new features:
 - Keep DOM queries and element creation in `ui/` or `main.ts`.
 - Keep file/download browser mechanics in `ui/download.ts`.
 - Keep output formats in `export/`.
+- Keep `npm run audit:deps` green; circular dependencies are architecture bugs, not acceptable shortcuts.
 - Avoid adding automatic pipeline simulation logic; this editor should remain manual and explicit.
 
