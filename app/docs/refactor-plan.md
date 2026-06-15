@@ -38,6 +38,7 @@ Recently resolved hotspot:
 - `app/src/app/tableRenderer.ts` no longer owns inline instruction editor rendering. That lives in `app/src/app/instructionEditorRenderer.ts`.
 - `app/src/app/contextMenuController.ts` is now a facade over `app/src/app/cellContextMenuController.ts` and `app/src/app/rowContextMenuController.ts`.
 - `app/src/core/validation.ts` is now a validation facade; default rules live in `app/src/core/validationRules.ts` and shared contracts in `app/src/core/validationTypes.ts`.
+- `app/src/styles/base.css` no longer owns design tokens. Theme variables and shared dimensions live in `app/src/styles/tokens.css`.
 
 ## Current Audit Status
 

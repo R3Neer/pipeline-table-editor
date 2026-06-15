@@ -62,7 +62,8 @@ app/src/
 │  ├─ sidebar.css
 │  ├─ stage-cells.css
 │  ├─ table.css
-│  └─ table-layout.css
+│  ├─ table-layout.css
+│  └─ tokens.css
 ├─ core/
 │  ├─ assembly.ts
 │  ├─ arrows.ts
@@ -152,6 +153,8 @@ The `integration/` modules adapt external browser services to the app. They may 
 The `ui/` modules work with DOM-specific behavior: locating elements, rendering highlighted assembly text, rendering autocomplete options, drawing SVG arrows, and triggering browser downloads.
 
 The `export/` modules produce external representations. `export/index.ts` contains JSON, Markdown, and plain-text export; `export/image.ts` renders a high-resolution PNG using canvas.
+
+Styles are split by visual responsibility. `styles/tokens.css` owns theme variables and dimensions, `styles/base.css` owns global reset/base controls/status, and the remaining files own sidebar, table, row, cell, overlay, arrow, and responsive domains.
 
 ## Module Responsibilities
 
