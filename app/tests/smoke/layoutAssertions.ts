@@ -147,6 +147,50 @@ export async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Pa
   await expectHorizontalScrollbarAttachedToTable(page);
 }
 
+export async function expectAddRowHoverAutoscrollsAndRestores(page: Page) {
+  const originalInstructions = await page.inputValue("#instructionsInput");
+  const manyInstructions = Array.from({ length: 18 }, (_, index) => `addi x${index + 1}, x${index + 1}, ${index}`).join("\n");
+  await page.fill("#instructionsInput", manyInstructions);
+  await page.waitForSelector('.stage-input[data-row="17"][data-cycle="0"]');
+
+  const result = await page.evaluate(() => {
+    const shell = document.querySelector("#tableShell");
+    const zone = document.querySelector(".add-row-zone");
+    const button = document.querySelector("#addRowInlineBtn");
+    if (!(shell instanceof HTMLElement) || !(zone instanceof HTMLElement) || !(button instanceof HTMLElement)) return null;
+
+    const maxScroll = shell.scrollHeight - shell.clientHeight;
+    const targetTop = Math.max(0, Math.min(maxScroll - 1, zone.offsetTop - shell.clientHeight + 8));
+    shell.scrollTop = targetTop;
+
+    const beforeTop = shell.scrollTop;
+    const beforeButtonBottom = button.getBoundingClientRect().bottom;
+    const shellBottom = shell.getBoundingClientRect().bottom;
+    zone.dispatchEvent(new MouseEvent("mouseenter"));
+    const revealedTop = shell.scrollTop;
+    const revealedButtonBottom = button.getBoundingClientRect().bottom;
+    zone.dispatchEvent(new MouseEvent("mouseleave"));
+    const restoredTop = shell.scrollTop;
+
+    return {
+      beforeTop,
+      revealedTop,
+      restoredTop,
+      wasCutOrTight: beforeButtonBottom > shellBottom - 12,
+      fitsAfterReveal: revealedButtonBottom <= shellBottom - 11
+    };
+  });
+
+  assert.ok(result);
+  assert.equal(result.wasCutOrTight, true);
+  assert.ok(result.revealedTop > result.beforeTop);
+  assert.equal(result.fitsAfterReveal, true);
+  assert.equal(result.restoredTop, result.beforeTop);
+
+  await page.fill("#instructionsInput", originalInstructions);
+  await page.waitForSelector('.stage-input[data-row="2"][data-cycle="0"]');
+}
+
 export async function expectHorizontalScrollbarAttachedToTable(page: Page) {
   const result = await page.evaluate(() => {
     const viewport = document.querySelector("#cycleViewport");
@@ -206,4 +250,3 @@ export async function expectArrowHoverUsesArrowColor(page: Page, row: number, cy
     { row, cycle }
   );
 }
-

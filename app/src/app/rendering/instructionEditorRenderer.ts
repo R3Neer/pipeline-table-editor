@@ -26,6 +26,13 @@ export interface InstructionEditorRenderer {
   makeAddRowZone(): HTMLElement;
 }
 
+interface AddRowHoverScroll {
+  top: number;
+  committed: boolean;
+}
+
+const addRowHoverBottomMargin = 12;
+
 export function createInstructionEditorRenderer({
   elements,
   splitTable,
@@ -38,6 +45,8 @@ export function createInstructionEditorRenderer({
   onInstructionClick,
   onInstructionContextMenu
 }: InstructionEditorRendererOptions): InstructionEditorRenderer {
+  let addRowHoverScroll: AddRowHoverScroll | null = null;
+
   function makeInstructionEditor(rowIndex: number): HTMLElement {
     const state = getState();
     const row = state.rows[rowIndex];
@@ -106,9 +115,42 @@ export function createInstructionEditorRenderer({
     button.textContent = "+";
     button.title = "Add row";
     button.setAttribute("aria-label", "Add row");
-    button.addEventListener("click", rowEditing.addInstruction);
+    button.addEventListener("click", () => {
+      if (addRowHoverScroll) addRowHoverScroll.committed = true;
+      rowEditing.addInstruction();
+    });
+    zone.addEventListener("mouseenter", () => revealAddRowButton(button));
+    zone.addEventListener("mouseleave", restoreAddRowHoverScroll);
     zone.appendChild(button);
     return zone;
+  }
+
+  function revealAddRowButton(button: HTMLElement): void {
+    addRowHoverScroll = null;
+    const shell = elements.tableShell;
+    if (shell.scrollHeight <= shell.clientHeight) return;
+
+    const shellRect = shell.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const overflow = buttonRect.bottom + addRowHoverBottomMargin - shellRect.bottom;
+    if (overflow <= 0) return;
+
+    const originalTop = shell.scrollTop;
+    const maxTop = shell.scrollHeight - shell.clientHeight;
+    const nextTop = Math.min(maxTop, originalTop + overflow);
+    if (nextTop === originalTop) return;
+
+    addRowHoverScroll = { top: originalTop, committed: false };
+    shell.scrollTop = nextTop;
+    window.requestAnimationFrame(drawArrows);
+  }
+
+  function restoreAddRowHoverScroll(): void {
+    const scroll = addRowHoverScroll;
+    addRowHoverScroll = null;
+    if (!scroll || scroll.committed) return;
+    elements.tableShell.scrollTop = scroll.top;
+    window.requestAnimationFrame(drawArrows);
   }
 
   function syncAssemblyHighlight(input: HTMLInputElement, highlight: HTMLElement): void {

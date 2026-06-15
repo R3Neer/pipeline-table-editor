@@ -12,6 +12,7 @@ import {
   expectCycleViewportHasBottomBreathingRoomWhenFull,
   expectCycleViewportHasNoUnneededVerticalScroll,
   expectCycleViewportScrollsHorizontally,
+  expectAddRowHoverAutoscrollsAndRestores,
   expectInstructionAndCyclePanesTouch,
   expectInstructionAndCycleRowsAligned
 } from "../layoutAssertions";
@@ -49,6 +50,7 @@ export async function runSetupLayoutAndRowsScenario(page: Page) {
   await expectInstructionAndCycleRowsAligned(page);
   await expectCycleViewportHasNoUnneededVerticalScroll(page);
   await expectCycleViewportHasBottomBreathingRoomWhenFull(page);
+  await expectAddRowHoverAutoscrollsAndRestores(page);
   await expectInstructionAndCyclePanesTouch(page);
   await expectInstructionButtonsHaveBreathingRoom(page);
   await expectInstructionButtonsDoNotOverlap(page);
@@ -128,4 +130,3 @@ export async function runSetupLayoutAndRowsScenario(page: Page) {
   await cell(page, 0, 0).click();
   await expectClass(page, 0, 0, "selected");
 }
-
