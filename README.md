@@ -77,6 +77,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run dev`: local Vite server.
 - `npm run build`: TypeScript check and static build.
 - `npm run preview`: previews `dist/`.
+- `npm run version:sync`: syncs the README release version from `app/package.json`.
 - `npm run audit:file-sizes`: reports code/style/test files over 100 lines, warns over 300, and fails over 500.
 - `npm run audit:deps`: fails if relative source imports contain circular dependencies.
 - `npm run audit:layers`: fails if source imports cross forbidden layer boundaries.
@@ -132,12 +133,17 @@ Labels and separators are manual annotations. They are exported in JSON, Markdow
 
 ## Release
 
-Current GitHub-ready version: `v0.2.2`.
+Current GitHub-ready version: `v1.0.0`.
 
 GitHub Pages is deployed automatically when a GitHub release is published. The
 release workflow first runs `npm run build`, `npm run test:all`, the file-size
 audit, the circular dependency audit, and the layer audit. Pages is deployed only
 if all validation steps pass.
+
+For published releases, the workflow also checks that the release tag, such as
+`v1.0.0`, matches `app/package.json`, such as `1.0.0`.
+Use `npm version <version>` from `app/` to update `package.json`,
+`package-lock.json`, and the README version line together.
 
 After validation, the workflow builds `app/dist/` and publishes it at
 `https://r3neer.github.io/pipeline-table-editor/`. It can also be run manually

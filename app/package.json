@@ -1,12 +1,14 @@
 {
   "name": "pipeline-table-editor",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "description": "Static web editor for instruction-time pipeline tables.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "version": "npm run version:sync",
+    "version:sync": "tsx scripts/sync-version-docs.ts",
     "audit:file-sizes": "tsx scripts/audit-file-sizes.ts",
     "audit:deps": "tsx scripts/audit-circular-deps.ts",
     "audit:layers": "tsx scripts/audit-layers.ts",
