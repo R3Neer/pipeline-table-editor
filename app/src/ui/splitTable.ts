@@ -12,8 +12,14 @@ export interface SplitTableController {
 
 const nativeScrollbarReserve = 18;
 const bottomScrollRows = 1.5;
+const smoothWheelDurationMs = 150;
 
 export function createSplitTableController(elements: SplitTableElements, onScroll: () => void): SplitTableController {
+  let smoothScrollTarget = 0;
+  let smoothScrollStart = 0;
+  let smoothScrollStartedAt = 0;
+  let smoothScrollFrame = 0;
+
   function syncLayout(): void {
     syncTableRowHeights(elements);
     updateCycleViewportOverflow(elements);
@@ -22,19 +28,56 @@ export function createSplitTableController(elements: SplitTableElements, onScrol
   function attach(): void {
     elements.tableShell.addEventListener("scroll", onScroll);
     elements.cycleViewport.addEventListener("scroll", onScroll);
-    elements.instructionMount.addEventListener(
-      "wheel",
-      (event) => {
-        if (!event.deltaY) return;
-        event.preventDefault();
-        elements.tableShell.scrollTop += event.deltaY;
-        onScroll();
-      },
-      { passive: false }
-    );
+    elements.tableShell.addEventListener("wheel", onTableWheel, { passive: false });
+  }
+
+  function onTableWheel(event: WheelEvent): void {
+    if (!event.deltaY || !elements.tableShell.classList.contains("has-vertical-overflow")) return;
+    if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+
+    event.preventDefault();
+    const maxScrollTop = elements.tableShell.scrollHeight - elements.tableShell.clientHeight;
+    const currentTarget = smoothScrollFrame ? smoothScrollTarget : elements.tableShell.scrollTop;
+    smoothScrollStart = elements.tableShell.scrollTop;
+    smoothScrollTarget = clamp(currentTarget + normalizeWheelDelta(event, elements.tableShell), 0, maxScrollTop);
+    smoothScrollStartedAt = performance.now();
+
+    if (!smoothScrollFrame) {
+      smoothScrollFrame = window.requestAnimationFrame(stepSmoothScroll);
+    }
+  }
+
+  function stepSmoothScroll(now: number): void {
+    const progress = clamp((now - smoothScrollStartedAt) / smoothWheelDurationMs, 0, 1);
+    const eased = 1 - (1 - progress) ** 3;
+    elements.tableShell.scrollTop = smoothScrollStart + (smoothScrollTarget - smoothScrollStart) * eased;
+    onScroll();
+
+    if (progress < 1 && Math.abs(elements.tableShell.scrollTop - smoothScrollTarget) > 0.5) {
+      smoothScrollFrame = window.requestAnimationFrame(stepSmoothScroll);
+      return;
+    }
+
+    elements.tableShell.scrollTop = smoothScrollTarget;
+    smoothScrollFrame = 0;
+    onScroll();
   }
 
   return { attach, syncLayout };
+}
+
+function normalizeWheelDelta(event: WheelEvent, element: HTMLElement): number {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    return event.deltaY * readCssPixelVariable(element, "--table-row-height", 60) * 0.45;
+  }
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return event.deltaY * element.clientHeight * 0.85;
+  }
+  return event.deltaY;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 function syncTableRowHeights(elements: SplitTableElements): void {

@@ -126,6 +126,10 @@ export async function expectCycleViewportHasBottomBreathingRoomWhenFull(page: Pa
   });
   await page.locator("#instructionMount").hover({ position: { x: 20, y: 220 } });
   await page.mouse.wheel(0, 360);
+  await page.waitForFunction(() => {
+    const shell = document.querySelector("#tableShell");
+    return shell instanceof HTMLElement && shell.scrollTop > 0;
+  });
   const syncedScroll = await page.evaluate(() => {
     const shell = document.querySelector("#tableShell");
     const firstInstructionRow = document.querySelector(".instruction-table tbody tr:first-child");
