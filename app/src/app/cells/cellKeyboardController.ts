@@ -1,6 +1,7 @@
 import type { AppState, CellPosition } from "../../core/model";
 import { getInputPosition } from "../../ui/dom";
 import type { SelectionController } from "../selection/selectionController";
+import type { AppMutationEffects } from "../appEffects";
 
 interface CellKeyboardControllerOptions {
   selection: SelectionController;
@@ -14,8 +15,7 @@ interface CellKeyboardControllerOptions {
   clearRowSelection(): void;
   setSingleSelection(pos: CellPosition): void;
   cancelTransientUi(): void;
-  refreshCellClasses(): void;
-  scheduleSave(): void;
+  effects: Pick<AppMutationEffects, "refreshCellsAndSave">;
   clearCell(pos?: CellPosition | null): void;
   toggleStrike(pos?: CellPosition | null): void;
 }
@@ -33,8 +33,7 @@ export function createCellKeyboardController({
   clearRowSelection,
   setSingleSelection,
   cancelTransientUi,
-  refreshCellClasses,
-  scheduleSave,
+  effects,
   clearCell,
   toggleStrike
 }: CellKeyboardControllerOptions): CellKeyboardController {
@@ -99,8 +98,7 @@ export function createCellKeyboardController({
       input.focus();
     }
     autocomplete.hide();
-    refreshCellClasses();
-    scheduleSave();
+    effects.refreshCellsAndSave();
   }
 
   function focusRelativeCell(pos: CellPosition, offset: number): void {

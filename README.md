@@ -79,6 +79,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 - `npm run preview`: previews `dist/`.
 - `npm run audit:file-sizes`: reports code/style/test files over 100 lines, warns over 300, and fails over 500.
 - `npm run audit:deps`: fails if relative source imports contain circular dependencies.
+- `npm run audit:layers`: fails if source imports cross forbidden layer boundaries.
 - `npm run screenshots`: regenerates documentation screenshots.
 - `npm run test:unit`: fast unit tests for domain rules.
 - `npm run test:integration`: integration-style unit tests for extensibility seams, storage, export services, visual class composition, and table-editing use cases.
@@ -87,6 +88,7 @@ See [`app/docs/architecture.md`](./app/docs/architecture.md) for module diagrams
 
 `npm run audit:file-sizes` is expected to pass. Files over 300 lines are still reported as warnings and should be reviewed during the next refactor pass.
 `npm run audit:deps` is expected to pass with no circular dependencies.
+`npm run audit:layers` is expected to pass with no forbidden imports between `core/`, `ui/`, `export/`, `integration/`, `app/`, and `main.ts`.
 
 ## Architecture And Refactor Policy
 
@@ -104,6 +106,8 @@ The current refactor direction is to keep `app/src/main.ts` as the composition r
 - Review files over 100 lines for responsibility boundaries.
 - Plan or justify files over 300 lines.
 - Treat code/style/test files over 500 lines as priority architecture debt.
+
+CI runs build, `npm run test:all`, file-size audit, circular dependency audit, and layer audit on pushes and pull requests. The GitHub Pages release workflow runs the same validation before deploying Pages.
 
 ## Cell Format
 
@@ -131,9 +135,9 @@ Labels and separators are manual annotations. They are exported in JSON, Markdow
 Current GitHub-ready version: `v0.2.2`.
 
 GitHub Pages is deployed automatically when a GitHub release is published. The
-release workflow first runs `npm run build`, unit tests, integration tests, the
-browser smoke test, the file-size audit, and the circular dependency audit. Pages
-is deployed only if all validation steps pass.
+release workflow first runs `npm run build`, `npm run test:all`, the file-size
+audit, the circular dependency audit, and the layer audit. Pages is deployed only
+if all validation steps pass.
 
 After validation, the workflow builds `app/dist/` and publishes it at
 `https://r3neer.github.io/pipeline-table-editor/`. It can also be run manually

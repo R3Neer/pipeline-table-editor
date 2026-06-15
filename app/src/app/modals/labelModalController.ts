@@ -1,6 +1,7 @@
 import { normalizeRowLabel } from "../../core/labels";
 import type { AppState } from "../../core/model";
 import type { AppElements } from "../../ui/dom";
+import type { AppMutationEffects } from "../appEffects";
 
 export interface LabelModalController {
   open(rowIndex: number): void;
@@ -11,15 +12,13 @@ export interface LabelModalController {
 interface LabelModalControllerOptions {
   elements: AppElements;
   getState(): AppState;
-  render(): void;
-  scheduleSave(): void;
+  effects: Pick<AppMutationEffects, "renderAndSave">;
 }
 
 export function createLabelModalController({
   elements,
   getState,
-  render,
-  scheduleSave
+  effects
 }: LabelModalControllerOptions): LabelModalController {
   let labelEditRow: number | null = null;
 
@@ -45,8 +44,7 @@ export function createLabelModalController({
       delete state.rows[labelEditRow].label;
     }
     hide();
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   function hide(): void {

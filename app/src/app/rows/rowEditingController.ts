@@ -7,6 +7,7 @@ import {
 import { makeRow } from "../../core/state";
 import type { AppElements } from "../../ui/dom";
 import type { SelectionController } from "../selection/selectionController";
+import type { AppMutationEffects } from "../appEffects";
 
 export interface RowEditingController {
   addInstruction(): void;
@@ -24,8 +25,7 @@ interface RowEditingControllerOptions {
   elements: AppElements;
   selection: SelectionController;
   getState(): AppState;
-  render(): void;
-  scheduleSave(): void;
+  effects: Pick<AppMutationEffects, "renderAndSave">;
   showConfirm(title: string, message: string, acceptLabel?: string): Promise<boolean>;
 }
 
@@ -33,8 +33,7 @@ export function createRowEditingController({
   elements,
   selection,
   getState,
-  render,
-  scheduleSave,
+  effects,
   showConfirm
 }: RowEditingControllerOptions): RowEditingController {
   let copiedInstruction: string | null = null;
@@ -43,8 +42,7 @@ export function createRowEditingController({
     const state = getState();
     state.rows.push(makeRow("", state.cycles));
     selection.clearRowSelection();
-    render();
-    scheduleSave();
+    effects.renderAndSave();
     window.requestAnimationFrame(() => {
       const input = document.querySelector<HTMLInputElement>(`tbody tr:nth-child(${state.rows.length}) .instruction-cell input`);
       if (input) input.focus();
@@ -65,8 +63,7 @@ export function createRowEditingController({
     }
     if (!removeRows(state, targets)) return;
     selection.clearRowSelection();
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   function moveRowsFrom(rowIndex: number, direction: number): void {
@@ -74,22 +71,19 @@ export function createRowEditingController({
     const nextSelection = moveRows(state, selection.getRowActionTargets(rowIndex), direction);
     if (!nextSelection) return;
     selection.replaceRowSelection(nextSelection);
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   function removeRowLabel(rowIndex: number): void {
     delete getState().rows[rowIndex].label;
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   function toggleRowSeparator(rowIndex: number): void {
     const row = getState().rows[rowIndex];
     row.separatorBefore = !row.separatorBefore;
     if (!row.separatorBefore) delete row.separatorBefore;
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   function clearInstruction(rowIndex: number): void {
@@ -98,8 +92,7 @@ export function createRowEditingController({
       state.rows[target].instruction = "";
     });
     syncInstructionsInput(state);
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   function copyInstruction(rowIndex: number): void {
@@ -120,8 +113,7 @@ export function createRowEditingController({
       state.rows[target].instruction = copiedInstruction ?? "";
     });
     syncInstructionsInput(state);
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   function syncInstructionsInput(state: AppState): void {

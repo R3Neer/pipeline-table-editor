@@ -29,6 +29,7 @@ The code follows a small layered split:
 app/src/
 ├─ app/
 │  ├─ appContext.ts
+│  ├─ appEffects.ts
 │  ├─ cells/
 │  │  ├─ cellActionController.ts
 │  │  ├─ cellEditingController.ts
@@ -173,6 +174,7 @@ Styles are split by visual responsibility. `styles/tokens.css` owns theme variab
 | Application composition | `main.ts` | Owns `AppState`, wires browser events, and delegates cohesive workflows to application controllers. |
 | Event binding | `app/events/appEventBindings.ts` | Wires global DOM events to controllers and keeps listener details out of the composition root. |
 | Application controller context | `app/appContext.ts` | Defines shared controller contracts so feature controllers depend on explicit app capabilities rather than broad imports. |
+| Application mutation effects | `app/appEffects.ts` | Centralizes common post-mutation effects such as render/save, cell refresh/save, and requested arrow redraws. |
 | Selection controller | `app/selection/selectionController.ts` | Owns cell/row selection state and selection operations without DOM access. `main.ts` decides when to refresh classes. |
 | Selection UI controller | `app/selection/selectionUiController.ts` | Coordinates DOM class refreshes after selection state changes without moving selection rules into the renderer. |
 | Table renderer | `app/rendering/tableRenderer.ts` | Builds the split table structure and stage-cell inputs, delegating instruction-row editing UI to `app/rendering/instructionEditorRenderer.ts`. |
@@ -225,6 +227,7 @@ Styles are split by visual responsibility. `styles/tokens.css` owns theme variab
 The project uses patterns only where they remove real coupling:
 
 - `app/*Controller.ts` modules are small Controllers/Facades around cohesive workflows. They reduce `main.ts` coupling without introducing framework state or class-heavy architecture.
+- `app/appEffects.ts` is a small Facade for the repeated post-mutation workflow: render or refresh visible state, schedule persistence, and request arrow redraws when needed.
 - Cell and row context menus use a small Command map: menu action ids dispatch to typed command functions instead of growing conditional action chains.
 - `ui/splitTable.ts` acts as a small Mediator between the instruction pane and the cycle viewport. Vertical scrolling, row-height synchronization, and overflow state are coordinated there so `main.ts` does not need to know the mechanics of the split table.
 - `core/autocomplete.ts` is a Facade over Strategy-like suggestion providers in `core/autocompleteProviders.ts`; ranking, context building, history heuristics, row numbering, and candidate validation are separate modules. New suggestion providers can be added without changing unrelated presentation code.
@@ -752,6 +755,21 @@ The audit does not include Markdown reference documents because long-form docume
 
 The audit is intentionally local to source files. It ignores package imports and dependency graph edges outside `src/` because those do not create internal architecture cycles.
 
+## Layer Audit
+
+`npm run audit:layers` checks TypeScript relative imports under `src/` and fails when a module crosses a forbidden architecture boundary.
+
+Allowed source imports:
+
+- `core/` may import only `core/`.
+- `ui/` may import `core/` and `ui/`.
+- `export/` may import `core/` and `export/`.
+- `integration/` may import `core/` and `integration/`.
+- `app/` may coordinate `app/`, `core/`, `ui/`, `export/`, and `integration/`.
+- `main.ts` remains the composition root and may import every source layer.
+
+This audit is separate from the circular dependency audit: a graph can be acyclic and still violate the intended dependency direction.
+
 ## Architectural Boundaries
 
 Keep these boundaries when adding new features:
@@ -769,5 +787,6 @@ Keep these boundaries when adding new features:
 - Keep file/download browser mechanics in `ui/download.ts`.
 - Keep output formats in `export/`.
 - Keep `npm run audit:deps` green; circular dependencies are architecture bugs, not acceptable shortcuts.
+- Keep `npm run audit:layers` green; layer violations are architecture bugs even when they do not create cycles.
 - Avoid adding automatic pipeline simulation logic; this editor should remain manual and explicit.
 

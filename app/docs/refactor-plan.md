@@ -20,6 +20,14 @@ Allowed code exceptions must explain why the file is large and what would make i
 - Circular dependencies inside `src/` are treated as architecture bugs.
 - If two modules need each other, introduce a smaller shared module, invert the dependency through callbacks/types, or move the shared rule to the lower layer that owns it.
 
+## Layer Boundary Policy
+
+- `npm run audit:layers` must pass before committing architecture refactors.
+- `core/` must remain DOM-free and cannot import `ui/`, `app/`, `export/`, or `integration/`.
+- `ui/`, `export/`, and `integration/` may depend downward on `core/` and on their own layer, but not on `app/`.
+- `app/` coordinates layers through explicit controller contracts; `main.ts` remains the broad composition root.
+- Layer violations are treated as architecture bugs even when the import graph has no cycles.
+
 ## Current Hotspots
 
 | File | Current concern | Direction |
@@ -28,6 +36,8 @@ Allowed code exceptions must explain why the file is large and what would make i
 
 Recently resolved hotspot:
 
+- GitHub Actions now runs build, `npm run test:all`, file-size audit, circular dependency audit, and layer audit on push/pull requests; the Pages release workflow uses the same validation gate before deploy.
+- `app/src/app/appEffects.ts` centralizes common post-mutation effects so controllers do not each wire their own render/refresh, save, and arrow-redraw sequences.
 - `app/src/ui/dom.ts` no longer mixes DOM lookup with assembly highlighting. Assembly presentation now lives in `app/src/ui/assemblyHighlight.ts`.
 - `app/tests/browser-smoke.ts` has been split into a smoke runner, browser app harness, editor driver, assertion helpers, and focused scenario files under `app/tests/smoke/`.
 - `app/src/main.ts` no longer owns context-menu visibility/action dispatch or row-label modal state; those live in `app/src/app/menus/contextMenuController.ts` and `app/src/app/modals/labelModalController.ts`.
@@ -107,6 +117,7 @@ Every non-doc commit should preserve:
 - No `core/` dependency on DOM, `ui/`, `integration/`, `export/`, or `app/`.
 - Passing `npm run build`, `npm run test:unit`, `npm run test:integration`, and `npm run test:smoke` before merging a phase.
 - Passing `npm run audit:deps` before merging architecture or module-boundary changes.
+- Passing `npm run audit:layers` before merging architecture or module-boundary changes.
 
 When a phase is large, prefer this sequence:
 

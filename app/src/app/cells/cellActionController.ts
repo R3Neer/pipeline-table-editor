@@ -1,6 +1,7 @@
 import type { AppState, CellPosition } from "../../core/model";
 import type { CopiedCell } from "../sessionTypes";
 import type { SelectionController } from "../selection/selectionController";
+import type { AppMutationEffects } from "../appEffects";
 
 export interface CellActionController {
   toggleStrike(pos?: CellPosition | null): void;
@@ -15,9 +16,7 @@ interface CellActionControllerOptions {
   getState(): AppState;
   getCellElement(pos: CellPosition): HTMLInputElement | null;
   hideAutocomplete(): void;
-  refreshCellClasses(): void;
-  scheduleSave(): void;
-  drawArrows(): void;
+  effects: Pick<AppMutationEffects, "refreshCellsAndSave">;
   removeOutgoingArrows(pos: CellPosition): boolean;
 }
 
@@ -26,9 +25,7 @@ export function createCellActionController({
   getState,
   getCellElement,
   hideAutocomplete,
-  refreshCellClasses,
-  scheduleSave,
-  drawArrows,
+  effects,
   removeOutgoingArrows
 }: CellActionControllerOptions): CellActionController {
   let copiedCell: CopiedCell | null = null;
@@ -39,9 +36,7 @@ export function createCellActionController({
     const cell = state.rows[pos.row].cells[pos.cycle];
     cell.struck = !cell.struck;
     if (cell.struck) removeOutgoingArrows(pos);
-    refreshCellClasses();
-    scheduleSave();
-    window.requestAnimationFrame(drawArrows);
+    effects.refreshCellsAndSave({ redrawArrows: true });
   }
 
   function clearCell(pos = selection.getSelectedCell()): void {
@@ -55,9 +50,7 @@ export function createCellActionController({
       if (input) input.value = "";
     });
     hideAutocomplete();
-    refreshCellClasses();
-    scheduleSave();
-    window.requestAnimationFrame(drawArrows);
+    effects.refreshCellsAndSave({ redrawArrows: true });
   }
 
   function copyCell(pos = selection.getSelectedCell()): void {
@@ -84,9 +77,7 @@ export function createCellActionController({
       const input = getCellElement(target);
       if (input) input.value = cell.text;
     });
-    refreshCellClasses();
-    scheduleSave();
-    window.requestAnimationFrame(drawArrows);
+    effects.refreshCellsAndSave({ redrawArrows: true });
   }
 
   function getActionTargets(fallback: CellPosition, state: AppState): CellPosition[] {

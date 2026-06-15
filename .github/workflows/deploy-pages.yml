@@ -41,16 +41,8 @@ jobs:
         run: npm run build
         working-directory: app
 
-      - name: Unit tests
-        run: npm run test:unit
-        working-directory: app
-
-      - name: Integration tests
-        run: npm run test:integration
-        working-directory: app
-
-      - name: Browser smoke test
-        run: npm run test:smoke
+      - name: Tests
+        run: npm run test:all
         working-directory: app
 
       - name: File-size audit
@@ -59,6 +51,10 @@ jobs:
 
       - name: Dependency audit
         run: npm run audit:deps
+        working-directory: app
+
+      - name: Layer audit
+        run: npm run audit:layers
         working-directory: app
 
   build:

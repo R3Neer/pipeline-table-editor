@@ -3,13 +3,13 @@ import type { AppState, CellPosition } from "../../core/model";
 import { removeOutgoingArrows as removeOutgoingArrowsFromState } from "../../core/useCases/tableEditing";
 import { drawArrows as drawArrowLayer } from "../../ui/arrows";
 import type { AppElements } from "../../ui/dom";
+import type { AppMutationEffects } from "../appEffects";
 import type { ArrowDraft } from "../sessionTypes";
 
 interface ArrowDraftContext {
   elements: AppElements;
   getState(): AppState;
-  render(): void;
-  scheduleSave(): void;
+  effects: Pick<AppMutationEffects, "renderAndSave">;
   showConfirm(title: string, message: string, acceptText?: string): Promise<boolean>;
 }
 
@@ -79,8 +79,7 @@ export function createArrowDraftController(
     }
     state.arrows.push({ from: { ...from }, to: { ...to }, label: "" });
     cancelArrowDraft();
-    context.render();
-    context.scheduleSave();
+    context.effects.renderAndSave();
   }
 
   function cancelArrowDraft(): void {
@@ -90,16 +89,14 @@ export function createArrowDraftController(
 
   function removeArrowsFrom(pos: CellPosition): void {
     if (removeOutgoingArrows(pos)) {
-      context.render();
-      context.scheduleSave();
+      context.effects.renderAndSave();
     }
   }
 
   async function removeArrow(index: number): Promise<void> {
     if (!(await context.showConfirm("Delete arrow", "Delete this arrow?", "Delete"))) return;
     context.getState().arrows.splice(index, 1);
-    context.render();
-    context.scheduleSave();
+    context.effects.renderAndSave();
   }
 
   function drawArrows(): void {

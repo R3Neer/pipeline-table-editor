@@ -84,11 +84,11 @@ function makeState(rows: string[][]): AppState {
     {
       elements: {} as never,
       getState: () => state,
-      render: () => {
-        rendered += 1;
-      },
-      scheduleSave: () => {
-        saved += 1;
+      effects: {
+        renderAndSave: () => {
+          rendered += 1;
+          saved += 1;
+        }
       },
       showStatus: () => undefined,
       showConfirm: async () => true

@@ -1,13 +1,13 @@
 import type { AppState, CellPosition } from "../../core/model";
 import type { AppElements } from "../../ui/dom";
+import type { AppMutationEffects } from "../appEffects";
 import { createArrowDraftController } from "./arrowDraftController";
 import { createExpansionDraftController } from "./expansionDraftController";
 
 interface ArrowAndExpansionContext {
   elements: AppElements;
   getState(): AppState;
-  render(): void;
-  scheduleSave(): void;
+  effects: Pick<AppMutationEffects, "renderAndSave">;
   showStatus(message: string): void;
   showConfirm(title: string, message: string, acceptText?: string): Promise<boolean>;
 }

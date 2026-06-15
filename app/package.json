@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "audit:file-sizes": "tsx scripts/audit-file-sizes.ts",
     "audit:deps": "tsx scripts/audit-circular-deps.ts",
+    "audit:layers": "tsx scripts/audit-layers.ts",
     "screenshots": "tsx tests/capture-screenshots.ts",
     "test:unit": "tsx tests/core.test.ts",
     "test:integration": "tsx tests/integration.test.ts",

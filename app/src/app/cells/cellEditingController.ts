@@ -5,6 +5,7 @@ import { getInputPosition } from "../../ui/dom";
 import { createCellActionController } from "./cellActionController";
 import { createCellKeyboardController } from "./cellKeyboardController";
 import type { SelectionController } from "../selection/selectionController";
+import type { AppMutationEffects } from "../appEffects";
 
 export interface CellEditingController {
   onCellInput(event: Event): void;
@@ -50,9 +51,7 @@ interface CellEditingControllerOptions {
   updateSelectionFromClick(pos: CellPosition, event: MouseEvent): void;
   renderSelectionInfo(): void;
   cancelTransientUi(): void;
-  refreshCellClasses(): void;
-  scheduleSave(): void;
-  drawArrows(): void;
+  effects: AppMutationEffects;
   removeOutgoingArrows(pos: CellPosition): boolean;
 }
 
@@ -68,9 +67,7 @@ export function createCellEditingController({
   updateSelectionFromClick,
   renderSelectionInfo,
   cancelTransientUi,
-  refreshCellClasses,
-  scheduleSave,
-  drawArrows,
+  effects,
   removeOutgoingArrows
 }: CellEditingControllerOptions): CellEditingController {
   const actions = createCellActionController({
@@ -78,9 +75,7 @@ export function createCellEditingController({
     getState,
     getCellElement,
     hideAutocomplete: autocomplete.hide,
-    refreshCellClasses,
-    scheduleSave,
-    drawArrows,
+    effects,
     removeOutgoingArrows
   });
   const keyboard = createCellKeyboardController({
@@ -91,8 +86,7 @@ export function createCellEditingController({
     clearRowSelection,
     setSingleSelection,
     cancelTransientUi,
-    refreshCellClasses,
-    scheduleSave,
+    effects,
     clearCell: actions.clearCell,
     toggleStrike: actions.toggleStrike
   });
@@ -104,10 +98,10 @@ export function createCellEditingController({
     const state = getState();
     state.rows[pos.row].cells[pos.cycle].text = normalized;
     if (input.value !== normalized) input.value = normalized;
-    refreshCellClasses();
+    effects.refreshCells();
     autocomplete.show(input, pos, state);
-    scheduleSave();
-    window.requestAnimationFrame(drawArrows);
+    effects.scheduleSave();
+    effects.requestArrowRedraw();
   }
 
   function onCellFocus(event: FocusEvent): void {
@@ -117,7 +111,7 @@ export function createCellEditingController({
     selection.setSelectedCell(selectedCell);
     if (!selection.hasSelectionAnchor()) setSingleSelection(selectedCell);
     contextMenu.hideCellMenu();
-    refreshCellClasses();
+    effects.refreshCells();
     renderSelectionInfo();
     autocomplete.show(input, selectedCell, getState());
   }
@@ -161,7 +155,7 @@ export function createCellEditingController({
     const contextCell = getInputPosition(input);
     selection.setSelectedCell(contextCell);
     if (!selection.hasSelectedCell(contextCell)) setSingleSelection(contextCell);
-    refreshCellClasses();
+    effects.refreshCells();
     autocomplete.hide();
     contextMenu.openCellMenu(contextCell, event.clientX, event.clientY);
   }

@@ -1,5 +1,6 @@
 import "./styles.css";
 
+import { createAppMutationEffects } from "./app/appEffects";
 import { bindAppEvents } from "./app/events/appEventBindings";
 import type { AppState, CellPosition } from "./core/model";
 import { createArrowAndExpansionController } from "./app/modes/arrowAndExpansionController";
@@ -41,11 +42,16 @@ const { scheduleSave, saveState } = createPersistenceController({
   getState: () => state,
   showStatus
 });
+const effects = createAppMutationEffects({
+  render,
+  refreshCellClasses,
+  scheduleSave,
+  drawArrows
+});
 const labelModal = createLabelModalController({
   elements,
   getState: () => state,
-  render,
-  scheduleSave
+  effects
 });
 const exportImport = createExportImportController(
   {
@@ -65,8 +71,7 @@ const arrowsAndExpansion = createArrowAndExpansionController(
   {
     elements,
     getState: () => state,
-    render,
-    scheduleSave,
+    effects,
     showStatus,
     showConfirm
   },
@@ -81,8 +86,7 @@ const rowEditing = createRowEditingController({
   elements,
   selection,
   getState: () => state,
-  render,
-  scheduleSave,
+  effects,
   showConfirm
 });
 let contextMenu: ReturnType<typeof createContextMenuController>;
@@ -101,9 +105,7 @@ const cellEditing = createCellEditingController({
   updateSelectionFromClick: selectionUi.updateSelectionFromClick,
   renderSelectionInfo,
   cancelTransientUi,
-  refreshCellClasses,
-  scheduleSave,
-  drawArrows,
+  effects,
   removeOutgoingArrows: arrowsAndExpansion.removeOutgoingArrows
 });
 const tableWorkflow = createTableWorkflowController({
@@ -111,7 +113,7 @@ const tableWorkflow = createTableWorkflowController({
   getState: () => state,
   setState,
   render,
-  scheduleSave,
+  effects,
   saveState,
   showConfirm,
   resetTransientState,

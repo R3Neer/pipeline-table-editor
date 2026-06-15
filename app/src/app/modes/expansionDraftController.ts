@@ -4,12 +4,12 @@ import {
   wouldChangeFilledCells
 } from "../../core/expansion";
 import type { AppState, CellPosition } from "../../core/model";
+import type { AppMutationEffects } from "../appEffects";
 import type { ExpandDraft } from "../sessionTypes";
 
 interface ExpansionDraftContext {
   getState(): AppState;
-  render(): void;
-  scheduleSave(): void;
+  effects: Pick<AppMutationEffects, "renderAndSave">;
   showConfirm(title: string, message: string, acceptText?: string): Promise<boolean>;
 }
 
@@ -82,8 +82,7 @@ export function createExpansionDraftController(
       if (input) input.value = text;
     });
     expandDraft = { from: null };
-    context.render();
-    context.scheduleSave();
+    context.effects.renderAndSave();
   }
 
   function cancelExpandDraft(): void {

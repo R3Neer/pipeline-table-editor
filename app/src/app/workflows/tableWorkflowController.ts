@@ -6,6 +6,7 @@ import {
   wouldLoseCellsAfterCycleReduction
 } from "../../core/useCases/tableEditing";
 import type { AppElements } from "../../ui/dom";
+import type { AppMutationEffects } from "../appEffects";
 
 export interface TableWorkflowController {
   applyInstructions(): void;
@@ -18,7 +19,7 @@ interface TableWorkflowControllerOptions {
   getState(): AppState;
   setState(nextState: AppState): void;
   render(): void;
-  scheduleSave(): void;
+  effects: Pick<AppMutationEffects, "renderAndSave">;
   saveState(immediate?: boolean): void;
   showConfirm(title: string, message: string, acceptLabel?: string): Promise<boolean>;
   resetTransientState(): void;
@@ -30,7 +31,7 @@ export function createTableWorkflowController({
   getState,
   setState,
   render,
-  scheduleSave,
+  effects,
   saveState,
   showConfirm,
   resetTransientState,
@@ -40,8 +41,7 @@ export function createTableWorkflowController({
     applyInstructionText(getState(), elements.instructionsInput.value);
     resetTransientState();
     clearSelections();
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   async function changeCycles(): Promise<void> {
@@ -56,8 +56,7 @@ export function createTableWorkflowController({
       }
     }
     changeCycleCount(state, nextCycles);
-    render();
-    scheduleSave();
+    effects.renderAndSave();
   }
 
   async function clearAll(): Promise<void> {
