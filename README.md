@@ -131,6 +131,10 @@ Labels and separators are manual annotations. They are exported in JSON, Markdow
 Current GitHub-ready version: `v0.2.2`.
 
 GitHub Pages is deployed automatically when a GitHub release is published. The
-workflow builds `app/dist/` and publishes it at
+release workflow first runs `npm run build`, unit tests, integration tests, the
+browser smoke test, the file-size audit, and the circular dependency audit. Pages
+is deployed only if all validation steps pass.
+
+After validation, the workflow builds `app/dist/` and publishes it at
 `https://r3neer.github.io/pipeline-table-editor/`. It can also be run manually
 from **Actions > Deploy GitHub Pages > Run workflow**.
