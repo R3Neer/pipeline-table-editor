@@ -78,6 +78,12 @@ app/src/
 ├─ integration/
 │  └─ storage.ts
 ├─ export/
+│  ├─ imageArrows.ts
+│  ├─ imageMetrics.ts
+│  ├─ imagePrimitives.ts
+│  ├─ imageTable.ts
+│  ├─ imageText.ts
+│  ├─ imageTheme.ts
 │  ├─ image.ts
 │  ├─ index.ts
 │  ├─ service.ts
@@ -180,7 +186,7 @@ The `export/` modules produce external representations. `export/index.ts` contai
 | Table element helpers | `ui/tableElements.ts` | Creates small reusable DOM elements such as table headers, row buttons, and scrollbar spacers. |
 | Text exports | `export/index.ts` | Generates JSON, Markdown, and plain text. |
 | Export service | `export/service.ts` | Chooses text export content and file metadata such as MIME type and extension. |
-| Image export | `export/image.ts` | Renders a high-resolution PNG with canvas. |
+| Image export | `export/image*.ts` | Renders a high-resolution PNG through a facade plus metrics, theme, primitive drawing, text, table, and arrow modules. |
 
 ## Design Pattern Notes
 
@@ -612,6 +618,8 @@ sequenceDiagram
 ```
 
 PNG export uses an opaque white background instead of transparency. This is safer for tables because the image remains legible when pasted into documents, PDFs, slides, or dark-background viewers.
+
+`export/image.ts` is only the orchestration facade: it creates the canvas, scales it, and delegates drawing. Layout constants live in `export/imageMetrics.ts`, colors and stage styles in `export/imageTheme.ts`, reusable canvas primitives in `export/imagePrimitives.ts`, instruction/label text rendering in `export/imageText.ts`, table and stage-cell rendering in `export/imageTable.ts`, and forwarding arrow rendering in `export/imageArrows.ts`.
 
 ## Persistence And Import
 

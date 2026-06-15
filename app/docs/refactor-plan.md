@@ -18,7 +18,6 @@ Allowed code exceptions must explain why the file is large and what would make i
 
 | File | Current concern | Direction |
 | --- | --- | --- |
-| `app/src/export/image.ts` | PNG export mixes metrics, rendering, theme, text drawing, cells, and arrows. | Split into layout, drawing, theme, and orchestration modules. |
 | `app/src/main.ts` | Composition root still also owns direct table rendering. | Extract table rendering/view assembly once export internals are split. |
 | `app/src/core/validation.ts` | Still manageable, but new validation rules will make it grow quickly. | Prepare rule-level modules before adding more rules. |
 
@@ -33,13 +32,14 @@ Recently resolved hotspot:
 - `app/src/main.ts` no longer owns bulk table workflows, global event binding, textarea resize binding, or small table DOM helpers. Those live in `app/src/app/tableWorkflowController.ts`, `app/src/app/appEventBindings.ts`, `app/src/ui/instructionColumnWidth.ts`, and `app/src/ui/tableElements.ts`.
 - `app/src/styles.css` has been split into visual-domain stylesheets under `app/src/styles/`, with the original file kept as the import entrypoint.
 - `app/src/core/autocomplete.ts` is now a facade. Provider rules, ranking, context, history, row-number analysis, validation, and shared types live in focused `app/src/core/autocomplete*.ts` modules.
+- `app/src/export/image.ts` is now a PNG export facade. Metrics, theme, primitives, text drawing, table drawing, and arrow drawing live in focused `app/src/export/image*.ts` modules.
 
 ## Current Audit Status
 
 `npm run audit:file-sizes` is currently expected to pass, with warnings for files over 300 lines. Those warnings keep the largest remaining architecture debt visible while the refactor is underway.
 
 Known `>500` files: none.
-Known `>300` warnings: `app/src/main.ts` and `app/src/export/image.ts`.
+Known `>300` warnings: `app/src/main.ts`.
 
 ## Refactor Phases
 
@@ -54,11 +54,11 @@ Known `>300` warnings: `app/src/main.ts` and `app/src/export/image.ts`.
    - `eventWiring` or `appBootstrap`
 4. Done: split `styles.css` into visual domains without changing visible behavior.
 5. Done: split autocomplete into facade, provider, ranking, context, history, row-analysis, validation, and type modules.
-6. Split PNG export into layout/render/theme/orchestration modules.
+6. Done: split PNG export into layout, theme, primitive drawing, text, table, arrow, and orchestration modules.
 7. In progress: split tests by contract and scenario. The browser smoke test is now split; `core.test.ts`, `integration.test.ts`, and screenshot capture can still be reviewed later.
 8. Update README, architecture docs, and release notes after each stable phase.
 
-The recommended next phase is to review the remaining `>300` warnings, starting with `app/src/export/image.ts` and then `app/src/main.ts`.
+The recommended next phase is to review the remaining `>300` warning in `app/src/main.ts`.
 
 ## Multi-Agent Team
 
