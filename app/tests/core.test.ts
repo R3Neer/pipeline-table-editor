@@ -8,6 +8,7 @@ import { getRowActionTargets, isRowNonEmpty, moveRows, removeRows } from "../src
 import { normalizeState } from "../src/core/state";
 import { normalizeCellText, parseStageText, validCellPattern } from "../src/core/stage";
 import { isCellTextValid } from "../src/core/validation";
+import { applyInstructionText } from "../src/core/useCases/tableEditing";
 import { exportJson, exportMarkdown, exportText } from "../src/export/index";
 
 function makeState(rows: string[][]): AppState {
@@ -155,6 +156,22 @@ assert.equal(tokenizeAssembly("<loop body> addi x1, x1, 1")[0].kind, "instructio
   state.arrows.push({ from: { row: 0, cycle: 0 }, to: { row: 1, cycle: 1 }, label: "" });
   assert.equal(isValidArrowTarget({ row: 0, cycle: 0 }, { row: 1, cycle: 1 }, state), false);
   assert.equal(isValidArrowTarget({ row: 0, cycle: 0 }, { row: 2, cycle: 1 }, state), true);
+}
+
+{
+  const state = makeState([["EX", ""], ["", "EX1"], ["", "EX2"], ["", "EX3"]]);
+  state.arrows.push({ from: { row: 0, cycle: 0 }, to: { row: 2, cycle: 1 }, label: "" });
+  assert.equal(isValidArrowTarget({ row: 1, cycle: 0 }, { row: 2, cycle: 1 }, state), true);
+  assert.equal(isValidArrowTarget({ row: 0, cycle: 0 }, { row: 2, cycle: 1 }, state), false);
+}
+
+{
+  const state = makeState([["IF"], ["ID"]]);
+  applyInstructionText(state, " add x1, x2, x3 \n\nsub x4, x5, x6 ");
+  assert.deepEqual(
+    state.rows.map((row) => row.instruction),
+    [" add x1, x2, x3 ", "", "sub x4, x5, x6 "]
+  );
 }
 
 {

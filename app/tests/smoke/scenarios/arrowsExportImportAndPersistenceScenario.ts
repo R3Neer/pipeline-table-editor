@@ -28,22 +28,24 @@ async function expectArrowWorkflow(page: Page) {
   await cell(page, 0, 3).click({ button: "right" });
   await page.locator('#cellMenu [data-action="arrow"]').click();
   await cell(page, 1, 4).hover();
+  await expectClass(page, 1, 4, "arrow-target-valid");
+  await cell(page, 1, 4).click();
+  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 2);
+  await cell(page, 0, 3).click({ button: "right" });
+  await page.locator('#cellMenu [data-action="arrow"]').click();
+  await cell(page, 1, 4).hover();
   await expectNoClass(page, 1, 4, "arrow-target-valid");
   await cell(page, 1, 4).click();
   await expectNoClass(page, 0, 3, "arrow-from");
-  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 1);
+  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 2);
   await cell(page, 0, 2).click({ button: "right" });
   await page.locator("#cellMenu").getByText("Strike").click();
-  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 0);
+  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 1);
   await cell(page, 0, 2).click({ button: "right" });
   await page.locator('#cellMenu [data-action="arrow"]').waitFor({ state: "hidden" });
   await page.locator('#cellMenu [data-action="remove-arrows"]').waitFor({ state: "hidden" });
   await page.locator("#cellMenu").getByText("Remove strike").click();
 
-  await cell(page, 0, 3).click({ button: "right" });
-  await page.locator('#cellMenu [data-action="arrow"]').click();
-  await cell(page, 1, 4).click();
-  await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 1);
   await cell(page, 0, 3).click({ button: "right" });
   await page.locator("#cellMenu").getByText("Remove arrows").click();
   await page.waitForFunction(() => document.querySelectorAll("#arrowLayer path.arrow-path").length === 0);
@@ -106,4 +108,3 @@ async function expectExportImportAndPersistence(page: Page) {
   await expectClass(page, 0, 4, "stage-struck");
   await fillCell(page, 2, 0, "EXp1");
 }
-

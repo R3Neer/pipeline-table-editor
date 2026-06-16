@@ -36,7 +36,7 @@ export function isValidArrowTarget(
       to.cycle < state.cycles &&
       to.row > from.row &&
       to.cycle > from.cycle &&
-      !state.arrows.some((arrow) => arrow !== ignoredArrow && samePos(arrow.to, to))
+      !state.arrows.some((arrow) => arrow !== ignoredArrow && samePos(arrow.from, from) && samePos(arrow.to, to))
   );
 }
 

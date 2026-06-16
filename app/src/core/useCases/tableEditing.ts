@@ -3,10 +3,7 @@ import type { AppState, CellPosition } from "../model";
 import { makeRow } from "../state";
 
 export function applyInstructionText(state: AppState, text: string): void {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
 
   state.rows = lines.map((instruction, index) => {
     const previous = state.rows[index];

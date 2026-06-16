@@ -1,6 +1,6 @@
 {
   "name": "pipeline-table-editor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Static web editor for instruction-time pipeline tables.",
   "type": "module",
   "scripts": {

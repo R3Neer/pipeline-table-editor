@@ -133,7 +133,7 @@ Labels and separators are manual annotations. They are exported in JSON, Markdow
 
 ## Release
 
-Current GitHub-ready version: `v1.0.0`.
+Current GitHub-ready version: `v1.0.1`.
 
 GitHub Pages is deployed automatically when a GitHub release is published. The
 release event dispatches the Pages deployment workflow on `main` so the
@@ -143,7 +143,7 @@ audit, the circular dependency audit, and the layer audit. Pages is deployed onl
 if all validation steps pass.
 
 For published releases, the workflow also checks that the release tag, such as
-`v1.0.0`, matches `app/package.json`, such as `1.0.0`.
+`v1.0.1`, matches `app/package.json`, such as `1.0.1`.
 Use `npm version <version>` from `app/` to update `package.json`,
 `package-lock.json`, and the README version line together.
 
